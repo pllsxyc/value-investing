@@ -1,0 +1,341 @@
+{% extends 'calculator/base.html' %}
+{% block title %}DCF 估值计算器{% endblock %}
+{% block content %}
+{% if messages %}
+    <div class="messages">
+        {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+    </div>
+{% endif %}
+
+<div class="grid">
+    <!-- 收藏侧栏 -->
+    <aside class="sidebar">
+        <div class="panel">
+            <div class="sidebar-section">
+                <h2>标签管理</h2>
+                {% if user.is_authenticated %}
+                    <form class="save-row" method="post">
+                        {% csrf_token %}
+                        <input type="hidden" name="action" value="create_tag">
+                        {{ tag_form.name }}
+                        <button class="btn-primary" type="submit">添加</button>
+                    </form>
+                    {% for error in tag_form.name.errors %}<div class="error">{{ error }}</div>{% endfor %}
+
+                    {% if tags %}
+                        <ul class="tag-list">
+                            {% for tag in tags %}
+                                <li>
+                                    <span class="tag-name">{{ tag.name }}{% if tag.favorite_count %}<em class="tag-count">{{ tag.favorite_count }}</em>{% endif %}</span>
+                                    {% if tag.favorite_count %}
+                                        <button class="icon-del" type="button" aria-label="删除标签 {{ tag.name }}"
+                                                onclick="alert('标签“{{ tag.name }}”下还有 {{ tag.favorite_count }} 条收藏，请先删除这些收藏后再删除该标签。');">×</button>
+                                    {% else %}
+                                        <form method="post" action="{% url 'delete_tag' tag.pk %}"
+                                              onsubmit="return confirm('删除标签“{{ tag.name }}”？');">
+                                            {% csrf_token %}
+                                            <button class="icon-del" type="submit" aria-label="删除标签 {{ tag.name }}">×</button>
+                                        </form>
+                                    {% endif %}
+                                </li>
+                            {% endfor %}
+                        </ul>
+                    {% else %}
+                        <p class="muted">还没有标签，添加后即可在计算时选择分类。</p>
+                    {% endif %}
+                {% else %}
+                    <p class="muted">登录后可创建并管理标签。</p>
+                {% endif %}
+            </div>
+
+            <div class="sidebar-section">
+                <h2>我的收藏</h2>
+                {% if user.is_authenticated %}
+                    {% if grouped_favorites %}
+                        {% for tag, items in grouped_favorites.items %}
+                            <details class="tag-group" open>
+                                <summary><span>{{ tag }}</span><em>{{ items|length }}</em></summary>
+                                <ul class="fav-list">
+                                    {% for item in items %}
+                                        <li class="fav-item">
+                                            <button class="fav-load" type="button" title="点击载入参数"
+                                                    data-tag="{{ item.tag }}"
+                                                    data-company_name="{{ item.company_name }}"
+                                                    data-ticker="{{ item.ticker }}"
+                                                    data-current_fcf="{{ item.current_fcf }}"
+                                                    data-growth_rate="{{ item.growth_rate }}"
+                                                    data-discount_rate="{{ item.discount_rate }}"
+                                                    data-terminal_growth_rate="{{ item.terminal_growth_rate }}"
+                                                    data-forecast_years="{{ item.forecast_years }}"
+                                                    data-net_debt="{{ item.net_debt }}"
+                                                    data-non_operating_assets="{{ item.non_operating_assets }}"
+                                                    data-shares_outstanding="{{ item.shares_outstanding }}">
+                                                <div class="fav-name">{{ item.company_name }}{% if item.ticker %} · {{ item.ticker }}{% endif %}</div>
+                                                <div class="fav-meta">每股 {{ item.value_per_share|floatformat:2 }} · {{ item.created_at|date:'m-d H:i' }}</div>
+                                            </button>
+                                            <form method="post" action="{% url 'delete_favorite' item.pk %}"
+                                                  onsubmit="return confirm('删除收藏“{{ item.company_name }}”？');">
+                                                {% csrf_token %}
+                                                <button class="fav-del" type="submit" title="删除" aria-label="删除收藏 {{ item.company_name }}">×</button>
+                                            </form>
+                                        </li>
+                                    {% endfor %}
+                                </ul>
+                            </details>
+                        {% endfor %}
+                    {% else %}
+                        <p class="fav-empty">暂无收藏<br>填写参数、选择标签后点击「保存到收藏」</p>
+                    {% endif %}
+                {% else %}
+                    <p class="muted">登录后可按标签收藏并随时载入参数。</p>
+                {% endif %}
+            </div>
+        </div>
+    </aside>
+
+    <!-- 中间：输入面板 -->
+    <div class="inputs-col">
+        <form method="post" class="dcf-form" id="dcfForm">
+            {% csrf_token %}
+            <input type="hidden" name="action" value="calculate">
+
+            <div class="panel">
+                <h2>公司信息</h2>
+                {% include 'calculator/_field.html' with field=form.company_name %}
+                {% include 'calculator/_field.html' with field=form.ticker %}
+                {% include 'calculator/_field.html' with field=form.tag %}
+
+                {% if not user.is_authenticated %}
+                    <p class="notice">登录后可保存每次计算的公司与参数。</p>
+                    <a class="btn-primary full" href="{% url 'login' %}">登录后保存</a>
+                {% elif not tags %}
+                    <p class="notice">请先在左侧创建标签，选择标签后即可保存。</p>
+                {% else %}
+                    <button class="btn-primary full" type="submit">保存到收藏</button>
+                {% endif %}
+            </div>
+
+            <div class="panel">
+                <h2>① 自由现金流</h2>
+                {% include 'calculator/_field.html' with field=form.current_fcf %}
+                <div class="row2">
+                    {% include 'calculator/_field.html' with field=form.forecast_years suffix='年' %}
+                    {% include 'calculator/_field.html' with field=form.growth_rate suffix='%' %}
+                </div>
+            </div>
+
+            <div class="panel">
+                <h2>② 折现率与终值</h2>
+                <div class="row2">
+                    {% include 'calculator/_field.html' with field=form.discount_rate suffix='%' %}
+                    {% include 'calculator/_field.html' with field=form.terminal_growth_rate suffix='%' %}
+                </div>
+                <div class="footnote">约束：永续增长率 g &lt; 折现率 r，且 g 一般应 ≤ 长期 GDP+通胀（成熟市场常用 2–3%）。</div>
+            </div>
+
+            <div class="panel">
+                <h2>③ 从企业价值到每股价值</h2>
+                {% include 'calculator/_field.html' with field=form.net_debt %}
+                {% include 'calculator/_field.html' with field=form.non_operating_assets %}
+                {% include 'calculator/_field.html' with field=form.shares_outstanding %}
+            </div>
+        </form>
+    </div>
+
+    <!-- 右侧：结果面板（实时计算） -->
+    <div class="results-col">
+        <div class="panel">
+            <h2>估值结果</h2>
+            <div class="summary">
+                <div class="stat"><div class="k">显式期现值合计</div><div class="v" id="pvSum">—</div></div>
+                <div class="stat"><div class="k">终值现值</div><div class="v" id="pvTv">—</div></div>
+                <div class="stat highlight"><div class="k">企业价值 EV</div><div class="v" id="ev">—</div></div>
+                <div class="stat"><div class="k">股权价值</div><div class="v" id="equity">—</div></div>
+                <div class="stat highlight"><div class="k">每股价值</div><div class="v" id="perShare">—</div></div>
+                <div class="stat"><div class="k">终值占比</div><div class="v" id="tvPct">—</div></div>
+            </div>
+            <div class="warn" id="warn"></div>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">
+                <h2>年度现金流明细</h2>
+                <span class="note">折现因子 = (1 + r)<sup>t</sup></span>
+            </div>
+            <table>
+                <thead>
+                    <tr><th>年份</th><th>FCFF</th><th>折现因子</th><th>现值 PV</th></tr>
+                </thead>
+                <tbody id="projRows"></tbody>
+                <tfoot>
+                    <tr><td>终值 TV (年末)</td><td id="tvRaw">—</td><td id="tvDf">—</td><td id="tvPv">—</td></tr>
+                </tfoot>
+            </table>
+        </div>
+
+        <div class="panel">
+            <div class="section-title">
+                <h2>敏感性分析 · 每股价值</h2>
+                <span class="note">行：WACC ±2%　列：永续增长率 ±1%</span>
+            </div>
+            <table class="sens-table" id="sensTable"></table>
+            <div class="footnote">DCF 输出对 WACC 与 g 极度敏感——给出区间而非单点。中心格为当前输入对应的结果。无总股本时显示企业价值 EV。</div>
+        </div>
+    </div>
+</div>
+
+<script>
+(function () {
+    const $ = (id) => document.getElementById(id);
+
+    // Django 字段 ID ↔ 计算变量
+    const F = {
+        fcff0: 'id_current_fcf',
+        years: 'id_forecast_years',
+        growth: 'id_growth_rate',
+        wacc: 'id_discount_rate',
+        terminal: 'id_terminal_growth_rate',
+        netDebt: 'id_net_debt',
+        adj: 'id_non_operating_assets',
+        shares: 'id_shares_outstanding',
+    };
+    const val = (key) => { const el = $(F[key]); return el ? el.value : ''; };
+
+    const fmt = (x, digits = 2) => {
+        if (!isFinite(x)) return '—';
+        const abs = Math.abs(x);
+        return (x < 0 ? '−' : '') + abs.toLocaleString('en-US', { maximumFractionDigits: digits, minimumFractionDigits: digits });
+    };
+    const fmtPct = (x) => isFinite(x) ? (x * 100).toFixed(1) + '%' : '—';
+
+    function computeValue({ fcff0, years, growth, wacc, terminal }) {
+        if (wacc <= terminal) return null;
+        let pvSum = 0;
+        const rows = [];
+        let fcff = fcff0;
+        for (let t = 1; t <= years; t++) {
+            fcff = fcff * (1 + growth);
+            const df = Math.pow(1 + wacc, t);
+            const pv = fcff / df;
+            pvSum += pv;
+            rows.push({ t, fcff, df, pv });
+        }
+        const lastFcff = rows[rows.length - 1].fcff;
+        const tv = (lastFcff * (1 + terminal)) / (wacc - terminal);
+        const tvDf = Math.pow(1 + wacc, years);
+        const pvTv = tv / tvDf;
+        return { rows, pvSum, tv, tvDf, pvTv, ev: pvSum + pvTv };
+    }
+
+    function compute() {
+        const fcff0 = parseFloat(val('fcff0'));
+        const years = Math.max(1, Math.min(30, Math.floor(parseFloat(val('years')) || 0)));
+        const growth = (parseFloat(val('growth')) || 0) / 100;
+        const wacc = (parseFloat(val('wacc')) || 0) / 100;
+        const terminal = (parseFloat(val('terminal')) || 0) / 100;
+        const netDebt = parseFloat(val('netDebt')) || 0;
+        const adj = parseFloat(val('adj')) || 0;
+        const shares = parseFloat(val('shares')) || 0;
+
+        const warn = $('warn');
+        warn.classList.remove('show');
+        const tbody = $('projRows');
+        tbody.innerHTML = '';
+        const blank = ['pvSum', 'pvTv', 'ev', 'equity', 'perShare', 'tvPct', 'tvRaw', 'tvDf', 'tvPv'];
+
+        if (!isFinite(fcff0)) {
+            warn.textContent = '请输入有效的基期 FCFF（当前自由现金流）。';
+            warn.classList.add('show');
+            blank.forEach(id => $(id).textContent = '—');
+            $('sensTable').innerHTML = '';
+            return;
+        }
+        if (wacc <= terminal) {
+            warn.textContent = '永续增长率必须严格小于折现率，否则终值无意义（分母 ≤ 0）。';
+            warn.classList.add('show');
+        }
+
+        const result = computeValue({ fcff0, years, growth, wacc, terminal });
+        if (!result) {
+            blank.forEach(id => $(id).textContent = '—');
+            $('sensTable').innerHTML = '';
+            return;
+        }
+
+        result.rows.forEach(r => {
+            const tr = document.createElement('tr');
+            tr.innerHTML = `<td>第 ${r.t} 年</td><td>${fmt(r.fcff)}</td><td>${r.df.toFixed(4)}</td><td>${fmt(r.pv)}</td>`;
+            tbody.appendChild(tr);
+        });
+
+        $('tvRaw').textContent = fmt(result.tv);
+        $('tvDf').textContent = result.tvDf.toFixed(4);
+        $('tvPv').textContent = fmt(result.pvTv);
+        $('pvSum').textContent = fmt(result.pvSum);
+        $('pvTv').textContent = fmt(result.pvTv);
+        $('ev').textContent = fmt(result.ev);
+
+        const equity = result.ev - netDebt + adj;
+        $('equity').textContent = fmt(equity);
+        $('perShare').textContent = shares > 0 ? fmt(equity / shares, 2) : '—';
+        $('tvPct').textContent = fmtPct(result.pvTv / result.ev);
+
+        renderSensitivity({ fcff0, years, growth, wacc, terminal, netDebt, adj, shares });
+    }
+
+    function renderSensitivity(base) {
+        const waccSteps = [-0.02, -0.01, 0, 0.01, 0.02];
+        const gSteps = [-0.01, -0.005, 0, 0.005, 0.01];
+        const showPerShare = base.shares > 0;
+
+        let html = '<thead><tr><th></th>';
+        gSteps.forEach(d => { html += `<th>g = ${((base.terminal + d) * 100).toFixed(1)}%</th>`; });
+        html += '</tr></thead><tbody>';
+
+        waccSteps.forEach(dw => {
+            const wacc = base.wacc + dw;
+            html += `<tr><td class="label">WACC ${(wacc * 100).toFixed(1)}%</td>`;
+            gSteps.forEach(dg => {
+                const g = base.terminal + dg;
+                const isCenter = dw === 0 && dg === 0;
+                const cls = isCenter ? ' class="center-cell"' : '';
+                const r = wacc > g ? computeValue({ fcff0: base.fcff0, years: base.years, growth: base.growth, wacc, terminal: g }) : null;
+                if (!r) { html += `<td${cls}>—</td>`; return; }
+                const equity = r.ev - base.netDebt + base.adj;
+                const v = showPerShare ? equity / base.shares : r.ev;
+                html += `<td${cls}>${fmt(v, showPerShare ? 2 : 0)}</td>`;
+            });
+            html += '</tr>';
+        });
+        html += '</tbody>';
+        $('sensTable').innerHTML = html;
+    }
+
+    // 实时重算
+    Object.values(F).forEach(id => { const el = $(id); if (el) el.addEventListener('input', compute); });
+
+    // 点击收藏 → 回填参数并重算
+    const FIELDS = ['tag', 'company_name', 'ticker', 'current_fcf', 'growth_rate', 'discount_rate',
+        'terminal_growth_rate', 'forecast_years', 'net_debt', 'non_operating_assets', 'shares_outstanding'];
+
+    function setActive(li) {
+        document.querySelectorAll('.fav-item.active').forEach(el => el.classList.remove('active'));
+        if (li) li.classList.add('active');
+    }
+
+    document.querySelectorAll('.fav-load').forEach(btn => {
+        btn.addEventListener('click', () => {
+            FIELDS.forEach(name => {
+                const el = $('id_' + name);
+                if (el && btn.dataset[name] !== undefined) el.value = btn.dataset[name];
+            });
+            setActive(btn.closest('.fav-item'));
+            compute();
+            $('id_company_name').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        });
+    });
+
+    compute();
+})();
+</script>
+{% endblock %}

@@ -1,0 +1,13 @@
+{% comment %}Renders one form field with label, optional help tooltip, optional unit suffix, and errors.{% endcomment %}
+<div class="field{% if field.errors %} has-error{% endif %}">
+    <label for="{{ field.id_for_label }}">
+        <span>{{ field.label }}</span>
+        {% if field.help_text %}<span class="hint" title="{{ field.help_text }}">?</span>{% endif %}
+    </label>
+    {% if suffix %}
+        <div class="suffix-wrap">{{ field }}<span class="suffix">{{ suffix }}</span></div>
+    {% else %}
+        {{ field }}
+    {% endif %}
+    {% for error in field.errors %}<div class="error">{{ error }}</div>{% endfor %}
+</div>

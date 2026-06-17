@@ -1,0 +1,57 @@
+{% extends 'calculator/base.html' %}
+{% block title %}收藏明细{% endblock %}
+{% block content %}
+{% if messages %}
+    <div class="messages">
+        {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+    </div>
+{% endif %}
+
+<div class="panel">
+    <div class="section-title">
+        <h2>收藏明细</h2>
+        <span class="note"><a href="{% url 'calculator' %}">← 返回计算器</a></span>
+    </div>
+    {% if calculations %}
+        <table>
+            <thead>
+                <tr>
+                    <th>时间</th>
+                    <th>公司</th>
+                    <th>标签</th>
+                    <th>FCFF</th>
+                    <th>增长率</th>
+                    <th>WACC</th>
+                    <th>永续增长</th>
+                    <th>每股价值</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in calculations %}
+                    <tr>
+                        <td>{{ item.created_at|date:'Y-m-d H:i' }}</td>
+                        <td>{{ item.company_name }}{% if item.ticker %} · <span class="muted">{{ item.ticker }}</span>{% endif %}</td>
+                        <td>{{ item.tag }}</td>
+                        <td>{{ item.current_fcf|floatformat:2 }}</td>
+                        <td>{{ item.growth_rate|floatformat:2 }}%</td>
+                        <td>{{ item.discount_rate|floatformat:2 }}%</td>
+                        <td>{{ item.terminal_growth_rate|floatformat:2 }}%</td>
+                        <td><strong>{{ item.value_per_share|floatformat:2 }}</strong></td>
+                        <td>
+                            <form method="post" action="{% url 'delete_favorite' item.pk %}"
+                                  onsubmit="return confirm('删除收藏“{{ item.company_name }}”？');">
+                                {% csrf_token %}
+                                <input type="hidden" name="next" value="favorites">
+                                <button class="fav-del" type="submit" aria-label="删除收藏 {{ item.company_name }}">×</button>
+                            </form>
+                        </td>
+                    </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    {% else %}
+        <p class="fav-empty">还没有收藏记录。</p>
+    {% endif %}
+</div>
+{% endblock %}

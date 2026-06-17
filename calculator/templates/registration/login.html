@@ -1,0 +1,13 @@
+{% extends 'calculator/base.html' %}
+{% block title %}登录{% endblock %}
+{% block content %}
+<section class="auth-card card">
+    <h1>登录</h1>
+    <form method="post" class="dcf-form">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button class="primary" type="submit">登录</button>
+    </form>
+    <p class="muted">还没有账号？<a href="{% url 'register' %}">注册</a></p>
+</section>
+{% endblock %}
