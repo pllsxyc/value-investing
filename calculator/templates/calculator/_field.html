@@ -2,7 +2,7 @@
 <div class="field{% if field.errors %} has-error{% endif %}">
     <label for="{{ field.id_for_label }}">
         <span>{{ field.label }}</span>
-        {% if field.help_text %}<span class="hint" title="{{ field.help_text }}">?</span>{% endif %}
+        {% if field.help_text and not no_hint %}<span class="hint" data-tip="{{ field.help_text }}" tabindex="0">?</span>{% endif %}
     </label>
     {% if suffix %}
         <div class="suffix-wrap">{{ field }}<span class="suffix">{{ suffix }}</span></div>

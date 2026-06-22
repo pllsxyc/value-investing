@@ -12,54 +12,39 @@
     <aside class="sidebar">
         <div class="panel">
             <div class="sidebar-section">
-                <h2>标签管理</h2>
+                <h2>标签与收藏</h2>
                 {% if user.is_authenticated %}
                     <form class="save-row" method="post">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="create_tag">
                         {{ tag_form.name }}
-                        <button class="btn-primary" type="submit">添加</button>
+                        <button class="btn-primary" type="submit">添加标签</button>
                     </form>
                     {% for error in tag_form.name.errors %}<div class="error">{{ error }}</div>{% endfor %}
 
-                    {% if tags %}
-                        <ul class="tag-list">
-                            {% for tag in tags %}
-                                <li>
-                                    <span class="tag-name">{{ tag.name }}{% if tag.favorite_count %}<em class="tag-count">{{ tag.favorite_count }}</em>{% endif %}</span>
-                                    {% if tag.favorite_count %}
-                                        <button class="icon-del" type="button" aria-label="删除标签 {{ tag.name }}"
-                                                onclick="alert('标签“{{ tag.name }}”下还有 {{ tag.favorite_count }} 条收藏，请先删除这些收藏后再删除该标签。');">×</button>
-                                    {% else %}
-                                        <form method="post" action="{% url 'delete_tag' tag.pk %}"
-                                              onsubmit="return confirm('删除标签“{{ tag.name }}”？');">
-                                            {% csrf_token %}
-                                            <button class="icon-del" type="submit" aria-label="删除标签 {{ tag.name }}">×</button>
-                                        </form>
-                                    {% endif %}
-                                </li>
-                            {% endfor %}
-                        </ul>
-                    {% else %}
-                        <p class="muted">还没有标签，添加后即可在计算时选择分类。</p>
-                    {% endif %}
-                {% else %}
-                    <p class="muted">登录后可创建并管理标签。</p>
-                {% endif %}
-            </div>
-
-            <div class="sidebar-section">
-                <h2>我的收藏</h2>
-                {% if user.is_authenticated %}
-                    {% if grouped_favorites %}
-                        {% for tag, items in grouped_favorites.items %}
+                    {% if groups %}
+                        {% for group in groups %}
                             <details class="tag-group" open>
-                                <summary><span>{{ tag }}</span><em>{{ items|length }}</em></summary>
+                                <summary>
+                                    <span class="tag-group-name">{{ group.name }}</span>
+                                    <span class="tag-group-tools">
+                                        <em>{{ group.items|length }}</em>
+                                        {% if group.tag %}
+                                            {% if group.items %}
+                                                <button class="icon-del" type="button" aria-label="删除标签 {{ group.name }}"
+                                                        onclick="event.preventDefault();event.stopPropagation();alert('标签“{{ group.name }}”下还有 {{ group.items|length }} 条收藏，请先删除这些收藏后再删除该标签。');">×</button>
+                                            {% else %}
+                                                <button class="icon-del" type="submit" form="del-tag-{{ group.tag.pk }}"
+                                                        onclick="event.stopPropagation();" aria-label="删除标签 {{ group.name }}">×</button>
+                                            {% endif %}
+                                        {% endif %}
+                                    </span>
+                                </summary>
                                 <ul class="fav-list">
-                                    {% for item in items %}
+                                    {% for item in group.items %}
                                         <li class="fav-item">
                                             <button class="fav-load" type="button" title="点击载入参数"
-                                                    data-tag="{{ item.tag }}"
+                                                    data-tags="{% for t in item.tags.all %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
                                                     data-company_name="{{ item.company_name }}"
                                                     data-ticker="{{ item.ticker }}"
                                                     data-current_fcf="{{ item.current_fcf }}"
@@ -79,15 +64,21 @@
                                                 <button class="fav-del" type="submit" title="删除" aria-label="删除收藏 {{ item.company_name }}">×</button>
                                             </form>
                                         </li>
+                                    {% empty %}
+                                        <li class="fav-empty-row">暂无收藏，填写参数并选择该标签后保存。</li>
                                     {% endfor %}
                                 </ul>
                             </details>
+                            {% if group.tag and not group.items %}
+                                <form id="del-tag-{{ group.tag.pk }}" method="post" action="{% url 'delete_tag' group.tag.pk %}"
+                                      onsubmit="return confirm('删除标签“{{ group.name }}”？');" hidden>{% csrf_token %}</form>
+                            {% endif %}
                         {% endfor %}
                     {% else %}
-                        <p class="fav-empty">暂无收藏<br>填写参数、选择标签后点击「保存到收藏」</p>
+                        <p class="muted">还没有标签，点击上方「添加标签」创建第一个分类，保存收藏后会折叠展示在对应标签下。</p>
                     {% endif %}
                 {% else %}
-                    <p class="muted">登录后可按标签收藏并随时载入参数。</p>
+                    <p class="muted">登录后可创建标签，并按标签收藏、载入估值参数。</p>
                 {% endif %}
             </div>
         </div>
@@ -101,14 +92,29 @@
 
             <div class="panel">
                 <h2>公司信息</h2>
-                {% include 'calculator/_field.html' with field=form.company_name %}
-                {% include 'calculator/_field.html' with field=form.ticker %}
-                {% include 'calculator/_field.html' with field=form.tag %}
+                {% include 'calculator/_field.html' with field=form.company_name no_hint=True %}
+                {% include 'calculator/_field.html' with field=form.ticker no_hint=True %}
+
+                <div class="field{% if form.tags.errors %} has-error{% endif %}">
+                    <label>
+                        <span>{{ form.tags.label }}</span>
+                    </label>
+                    <div class="tag-select" id="tagSelect">
+                        <button type="button" class="tag-select-toggle" id="tagSelectToggle" aria-haspopup="listbox" aria-expanded="false">
+                            <span class="tag-select-label" id="tagSelectLabel" data-placeholder="选择标签（可多选）">选择标签（可多选）</span>
+                            <span class="tag-select-caret">▾</span>
+                        </button>
+                        <div class="tag-select-panel" id="tagSelectPanel" role="listbox">
+                            {% if has_tags %}{{ form.tags }}{% else %}<p class="muted tag-select-empty">请先在左侧创建标签。</p>{% endif %}
+                        </div>
+                    </div>
+                    {% for error in form.tags.errors %}<div class="error">{{ error }}</div>{% endfor %}
+                </div>
 
                 {% if not user.is_authenticated %}
                     <p class="notice">登录后可保存每次计算的公司与参数。</p>
                     <a class="btn-primary full" href="{% url 'login' %}">登录后保存</a>
-                {% elif not tags %}
+                {% elif not has_tags %}
                     <p class="notice">请先在左侧创建标签，选择标签后即可保存。</p>
                 {% else %}
                     <button class="btn-primary full" type="submit">保存到收藏</button>
@@ -117,7 +123,7 @@
 
             <div class="panel">
                 <h2>① 自由现金流</h2>
-                {% include 'calculator/_field.html' with field=form.current_fcf %}
+                {% include 'calculator/_field.html' with field=form.current_fcf suffix='万元' %}
                 <div class="row2">
                     {% include 'calculator/_field.html' with field=form.forecast_years suffix='年' %}
                     {% include 'calculator/_field.html' with field=form.growth_rate suffix='%' %}
@@ -135,9 +141,9 @@
 
             <div class="panel">
                 <h2>③ 从企业价值到每股价值</h2>
-                {% include 'calculator/_field.html' with field=form.net_debt %}
-                {% include 'calculator/_field.html' with field=form.non_operating_assets %}
-                {% include 'calculator/_field.html' with field=form.shares_outstanding %}
+                {% include 'calculator/_field.html' with field=form.net_debt suffix='万元' %}
+                {% include 'calculator/_field.html' with field=form.non_operating_assets suffix='万元' %}
+                {% include 'calculator/_field.html' with field=form.shares_outstanding suffix='万股' %}
             </div>
         </form>
     </div>
@@ -315,12 +321,39 @@
     Object.values(F).forEach(id => { const el = $(id); if (el) el.addEventListener('input', compute); });
 
     // 点击收藏 → 回填参数并重算
-    const FIELDS = ['tag', 'company_name', 'ticker', 'current_fcf', 'growth_rate', 'discount_rate',
+    const FIELDS = ['company_name', 'ticker', 'current_fcf', 'growth_rate', 'discount_rate',
         'terminal_growth_rate', 'forecast_years', 'net_debt', 'non_operating_assets', 'shares_outstanding'];
 
     function setActive(li) {
         document.querySelectorAll('.fav-item.active').forEach(el => el.classList.remove('active'));
         if (li) li.classList.add('active');
+    }
+
+    // 多选标签下拉框
+    const tagSelect = $('tagSelect');
+    const tagToggle = $('tagSelectToggle');
+    const tagLabel = $('tagSelectLabel');
+    const tagBoxes = () => Array.from(document.querySelectorAll('#tagSelectPanel input[name="tags"]'));
+
+    function updateTagLabel() {
+        if (!tagLabel) return;
+        const names = tagBoxes().filter(cb => cb.checked)
+            .map(cb => (cb.closest('label') || {}).textContent.trim());
+        tagLabel.textContent = names.length ? names.join('、') : tagLabel.dataset.placeholder;
+        tagLabel.classList.toggle('is-placeholder', names.length === 0);
+    }
+
+    function openTagPanel(open) {
+        if (!tagSelect) return;
+        tagSelect.classList.toggle('open', open);
+        tagToggle.setAttribute('aria-expanded', open ? 'true' : 'false');
+    }
+
+    if (tagToggle) {
+        tagToggle.addEventListener('click', () => openTagPanel(!tagSelect.classList.contains('open')));
+        tagBoxes().forEach(cb => cb.addEventListener('change', updateTagLabel));
+        document.addEventListener('click', (e) => { if (!tagSelect.contains(e.target)) openTagPanel(false); });
+        updateTagLabel();
     }
 
     document.querySelectorAll('.fav-load').forEach(btn => {
@@ -329,6 +362,12 @@
                 const el = $('id_' + name);
                 if (el && btn.dataset[name] !== undefined) el.value = btn.dataset[name];
             });
+            // 多选标签：勾选该收藏所属的标签，其余取消
+            const tagIds = (btn.dataset.tags || '').split(',').filter(Boolean);
+            document.querySelectorAll('input[name="tags"]').forEach(cb => {
+                cb.checked = tagIds.includes(cb.value);
+            });
+            updateTagLabel();
             setActive(btn.closest('.fav-item'));
             compute();
             $('id_company_name').scrollIntoView({ behavior: 'smooth', block: 'nearest' });

@@ -32,7 +32,7 @@
                     <tr>
                         <td>{{ item.created_at|date:'Y-m-d H:i' }}</td>
                         <td>{{ item.company_name }}{% if item.ticker %} · <span class="muted">{{ item.ticker }}</span>{% endif %}</td>
-                        <td>{{ item.tag }}</td>
+                        <td>{% for t in item.tags.all %}{{ t.name }}{% if not forloop.last %}、{% endif %}{% empty %}未分类{% endfor %}</td>
                         <td>{{ item.current_fcf|floatformat:2 }}</td>
                         <td>{{ item.growth_rate|floatformat:2 }}%</td>
                         <td>{{ item.discount_rate|floatformat:2 }}%</td>

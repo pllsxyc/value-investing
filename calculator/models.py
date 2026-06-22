@@ -21,7 +21,7 @@ class DcfCalculation(models.Model):
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name='dcf_calculations')
     company_name = models.CharField(max_length=120)
     ticker = models.CharField(max_length=32, blank=True)
-    tag = models.CharField(max_length=80, blank=True, default='未分类')
+    tags = models.ManyToManyField(DcfTag, related_name='calculations', blank=True)
     current_fcf = models.DecimalField(max_digits=18, decimal_places=2)
     growth_rate = models.DecimalField(max_digits=7, decimal_places=4)
     discount_rate = models.DecimalField(max_digits=7, decimal_places=4)

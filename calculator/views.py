@@ -1,4 +1,3 @@
-from collections import OrderedDict
 from decimal import Decimal
 
 from django.contrib import messages
@@ -55,24 +54,27 @@ def calculate_dcf(data):
     }
 
 
-def get_grouped_favorites(user):
-    """按标签分组收藏记录，只返回有收藏的分组，并尽量保持标签创建顺序。"""
+def get_sidebar_groups(user):
+    """侧栏分组：每个标签一组（含空标签），未分类记录单独成组排在最后。"""
     if not user.is_authenticated:
-        return OrderedDict()
+        return []
 
-    groups = OrderedDict()
-    for item in DcfCalculation.objects.filter(user=user):
-        groups.setdefault(item.tag or '未分类', []).append(item)
+    by_tag_id = {}
+    untagged = []
+    for item in DcfCalculation.objects.filter(user=user).prefetch_related('tags'):
+        item_tags = list(item.tags.all())
+        if not item_tags:
+            untagged.append(item)
+        for tag in item_tags:
+            by_tag_id.setdefault(tag.id, []).append(item)
 
-    tag_order = list(DcfTag.objects.filter(user=user).values_list('name', flat=True))
-    ordered = OrderedDict()
-    for name in tag_order:
-        if name in groups:
-            ordered[name] = groups.pop(name)
-    # 其余分组（如已删除标签或“未分类”）追加在后面
-    for name, items in groups.items():
-        ordered[name] = items
-    return ordered
+    groups = [
+        {'tag': tag, 'name': tag.name, 'items': by_tag_id.get(tag.id, [])}
+        for tag in DcfTag.objects.filter(user=user)
+    ]
+    if untagged:
+        groups.append({'tag': None, 'name': '未分类', 'items': untagged})
+    return groups
 
 
 DEFAULT_INITIAL = {
@@ -106,31 +108,30 @@ def calculator(request):
         form = DcfCalculationForm(request.POST, user=request.user)
         if form.is_valid():
             result = calculate_dcf(form.cleaned_data)
-            calculation_data = {field: form.cleaned_data[field] for field in form.Meta.fields}
-            DcfCalculation.objects.create(
+            calculation_data = {
+                field: form.cleaned_data[field]
+                for field in form.Meta.fields if field != 'tags'
+            }
+            calculation = DcfCalculation.objects.create(
                 user=request.user,
                 enterprise_value=result['enterprise_value'],
                 equity_value=result['equity_value'],
                 value_per_share=result['value_per_share'],
                 **calculation_data,
             )
+            calculation.tags.set(form.cleaned_data['tags'])
             messages.success(request, f'已保存「{form.cleaned_data["company_name"]}」到收藏。')
             return redirect('calculator')
     else:
         form = DcfCalculationForm(user=request.user, initial=DEFAULT_INITIAL)
 
-    grouped_favorites = get_grouped_favorites(request.user)
-    if request.user.is_authenticated:
-        tags = list(DcfTag.objects.filter(user=request.user))
-        for tag in tags:
-            tag.favorite_count = len(grouped_favorites.get(tag.name, []))
-    else:
-        tags = []
+    groups = get_sidebar_groups(request.user)
+    has_tags = request.user.is_authenticated and any(g['tag'] for g in groups)
     return render(request, 'calculator/calculator.html', {
         'form': form,
         'tag_form': tag_form,
-        'tags': tags,
-        'grouped_favorites': grouped_favorites,
+        'groups': groups,
+        'has_tags': has_tags,
     })
 
 
@@ -158,7 +159,7 @@ def delete_tag(request, pk):
         if not tag:
             messages.error(request, '标签不存在。')
         else:
-            count = DcfCalculation.objects.filter(user=request.user, tag=tag.name).count()
+            count = tag.calculations.count()
             if count:
                 messages.error(request, f'标签“{tag.name}”下还有 {count} 条收藏，请先删除这些收藏后再删除标签。')
             else:

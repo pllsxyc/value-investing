@@ -11,6 +11,7 @@ class DcfTagAdmin(admin.ModelAdmin):
 
 @admin.register(DcfCalculation)
 class DcfCalculationAdmin(admin.ModelAdmin):
-    list_display = ['company_name', 'ticker', 'tag', 'user', 'value_per_share', 'created_at']
-    search_fields = ['company_name', 'ticker', 'tag', 'user__username']
-    list_filter = ['tag', 'created_at']
+    list_display = ['company_name', 'ticker', 'user', 'value_per_share', 'created_at']
+    search_fields = ['company_name', 'ticker', 'tags__name', 'user__username']
+    list_filter = ['tags', 'created_at']
+    filter_horizontal = ['tags']
