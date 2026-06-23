@@ -1,3 +1,4 @@
+import threading
 from contextlib import contextmanager
 from datetime import datetime
 
@@ -6,9 +7,33 @@ import pymysql
 
 from stock_crawler.config import MYSQL_CONFIG
 
+_local = threading.local()
+
+
+@contextmanager
+def session():
+    """Open one connection reused by every execute_*/fetch_* call inside the block."""
+    conn = pymysql.connect(**MYSQL_CONFIG)
+    _local.conn = conn
+    try:
+        yield conn
+    finally:
+        _local.conn = None
+        conn.close()
+
 
 @contextmanager
 def get_connection():
+    shared = getattr(_local, "conn", None)
+    if shared is not None:
+        # Reuse the session connection; commit per statement, leave it open for session() to close.
+        try:
+            yield shared
+            shared.commit()
+        except Exception:
+            shared.rollback()
+            raise
+        return
     conn = pymysql.connect(**MYSQL_CONFIG)
     try:
         yield conn

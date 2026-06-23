@@ -1,4 +1,5 @@
 db.sqlite3
+stock_crawler/.env
 *.pyc
 __pycache__/
 .venv

@@ -50,12 +50,15 @@ def upsert_daily_quote(row):
     execute_one(
         """
         INSERT INTO stock_daily_quote
-        (stock_code, trade_date, market_cap, pe_ttm, pe_static, pb, pcf, total_share, float_share, source)
+        (stock_code, trade_date, market_cap, pe_ttm, pe_static, pb, pcf,
+         market_cap_52w_high, market_cap_52w_low, total_share, float_share, source)
         VALUES (%(stock_code)s, %(trade_date)s, %(market_cap)s, %(pe_ttm)s, %(pe_static)s, %(pb)s,
-                %(pcf)s, %(total_share)s, %(float_share)s, %(source)s)
+                %(pcf)s, %(market_cap_52w_high)s, %(market_cap_52w_low)s,
+                %(total_share)s, %(float_share)s, %(source)s)
         ON DUPLICATE KEY UPDATE
             market_cap=VALUES(market_cap), pe_ttm=VALUES(pe_ttm), pe_static=VALUES(pe_static),
-            pb=VALUES(pb), pcf=VALUES(pcf), total_share=VALUES(total_share),
+            pb=VALUES(pb), pcf=VALUES(pcf), market_cap_52w_high=VALUES(market_cap_52w_high),
+            market_cap_52w_low=VALUES(market_cap_52w_low), total_share=VALUES(total_share),
             float_share=VALUES(float_share), source=VALUES(source)
         """,
         row,

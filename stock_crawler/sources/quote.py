@@ -22,6 +22,8 @@ def fetch_daily_quote(stock_code, trade_date=None):
         "pe_static": None,
         "pb": None,
         "pcf": None,
+        "market_cap_52w_high": None,
+        "market_cap_52w_low": None,
         "total_share": None,
         "float_share": None,
         "source": "baidu/akshare",
