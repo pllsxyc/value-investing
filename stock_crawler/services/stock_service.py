@@ -126,6 +126,30 @@ def upsert_financial_summary(rows):
     )
 
 
+def upsert_balance_sheet(rows):
+    execute_many(
+        """
+        INSERT INTO stock_balance_sheet
+        (stock_code, report_date, monetary_funds, trade_finasset, other_equity_invest,
+         other_noncurrent_finasset, short_loan, short_bond_payable, noncurrent_liab_1year,
+         long_loan, bond_payable, source)
+        VALUES (%(stock_code)s, %(report_date)s, %(monetary_funds)s, %(trade_finasset)s,
+                %(other_equity_invest)s, %(other_noncurrent_finasset)s, %(short_loan)s,
+                %(short_bond_payable)s, %(noncurrent_liab_1year)s, %(long_loan)s, %(bond_payable)s,
+                'eastmoney/akshare')
+        ON DUPLICATE KEY UPDATE
+            monetary_funds=VALUES(monetary_funds), trade_finasset=VALUES(trade_finasset),
+            other_equity_invest=VALUES(other_equity_invest),
+            other_noncurrent_finasset=VALUES(other_noncurrent_finasset),
+            short_loan=VALUES(short_loan), short_bond_payable=VALUES(short_bond_payable),
+            noncurrent_liab_1year=VALUES(noncurrent_liab_1year), long_loan=VALUES(long_loan),
+            bond_payable=VALUES(bond_payable), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
+        """,
+        rows,
+    )
+
+
 def upsert_dividends(rows):
     execute_many(
         """

@@ -65,8 +65,12 @@ DJANGO_DEBUG=1 python manage.py test
 | `DJANGO_ALLOWED_HOSTS` | 允许的 Host，逗号分隔 | 用默认即可 | `vi.starbugs.net,...` |
 | `DCF_DB_ENGINE` | `mysql` 切到 MySQL；其余/不设则用 SQLite | 不设(SQLite) | `mysql` |
 | `DCF_DB_NAME/USER/PASSWORD/HOST/PORT` | MySQL 连接（`DCF_DB_ENGINE=mysql` 时生效） | — | `dcf_data` / `dcf_user` / … / `127.0.0.1` / `3306` |
+| `STOCK_DB_ENABLED` | 设 `1` 挂载只读 `stock` 连接做公司搜索（`DCF_DB_ENGINE=mysql` 时自动挂载） | 不设 | `1` |
+| `STOCK_DB_NAME/USER/PASSWORD/HOST/PORT` | 只读复用爬虫库 `stock_data` 的连接 | — | `stock_data` / 只读账号 / … / `127.0.0.1` / `3306` |
 
 数据库：默认 SQLite；设 `DCF_DB_ENGINE=mysql` 即切到 MySQL 库 `dcf_data`（与爬虫的 `stock_data` 相互独立）。生产已用 MySQL。
+
+公司搜索/自动填充：计算器顶部的「搜索已收录公司」框会**只读**查询爬虫库 `stock_data`（`stock_basic`/`stock_share_capital`/`stock_financial_summary`），自动带出股票代码、总股本、经营现金流参考值（非真实 FCF）。该连接由 `STOCK_DB_*` 配置，仅用原生 SQL 读取、不迁移（见 `dcfsite/db_router.py`）；生产建议为其单独配一个只读 MySQL 账号。未配置或连接失败时，搜索框优雅降级提示「公司库未启用」，不影响计算器其余功能。
 
 `DEBUG=False` 时自动启用生产安全项（强制 HTTPS、HSTS、安全 Cookie、`X-Frame-Options: DENY` 等）。生产环境变量写在 `/etc/dcfsite.env`（不纳入代码库），由 systemd 注入。
 

@@ -92,6 +92,14 @@
 
             <div class="panel">
                 <h2>公司信息</h2>
+                <div class="field stock-search" id="stockSearch">
+                    <label for="stockSearchInput">
+                        <span>搜索已收录公司</span>
+                        <span class="hint" data-tip="从已抓取的 A 股中按名称或代码搜索，自动带出股票代码、总股本与经营现金流参考值。库中没有的公司请手动填写。" tabindex="0">?</span>
+                    </label>
+                    <input type="text" id="stockSearchInput" autocomplete="off" placeholder="输入公司简称或代码，如 长江电力 / 600900">
+                    <div class="stock-search-results" id="stockSearchResults" role="listbox" hidden></div>
+                </div>
                 {% include 'calculator/_field.html' with field=form.company_name no_hint=True %}
                 {% include 'calculator/_field.html' with field=form.ticker no_hint=True %}
 
@@ -124,6 +132,7 @@
             <div class="panel">
                 <h2>① 自由现金流</h2>
                 {% include 'calculator/_field.html' with field=form.current_fcf suffix='万元' %}
+                <div class="field-note" id="fcfNote" hidden></div>
                 <div class="row2">
                     {% include 'calculator/_field.html' with field=form.forecast_years suffix='年' %}
                     {% include 'calculator/_field.html' with field=form.growth_rate suffix='%' %}
@@ -143,6 +152,7 @@
                 <h2>③ 从企业价值到每股价值</h2>
                 {% include 'calculator/_field.html' with field=form.net_debt suffix='万元' %}
                 {% include 'calculator/_field.html' with field=form.non_operating_assets suffix='万元' %}
+                <div class="field-note" id="balanceNote" hidden></div>
                 {% include 'calculator/_field.html' with field=form.shares_outstanding suffix='万股' %}
             </div>
         </form>
@@ -150,15 +160,24 @@
 
     <!-- 右侧：结果面板（实时计算） -->
     <div class="results-col">
+        <div class="panel" id="overviewPanel" hidden>
+            <div class="section-title">
+                <h2>公司速览</h2>
+                <span class="note" id="overviewNote"></span>
+            </div>
+            <div class="overview-grid" id="overviewGrid"></div>
+            <div class="footnote">来自已收录的行情/财务数据，仅供参考，不参与估值计算。</div>
+        </div>
+
         <div class="panel">
             <h2>估值结果</h2>
             <div class="summary">
-                <div class="stat"><div class="k">显式期现值合计</div><div class="v" id="pvSum">—</div></div>
-                <div class="stat"><div class="k">终值现值</div><div class="v" id="pvTv">—</div></div>
-                <div class="stat highlight"><div class="k">企业价值 EV</div><div class="v" id="ev">—</div></div>
-                <div class="stat"><div class="k">股权价值</div><div class="v" id="equity">—</div></div>
-                <div class="stat highlight"><div class="k">每股价值</div><div class="v" id="perShare">—</div></div>
-                <div class="stat"><div class="k">终值占比</div><div class="v" id="tvPct">—</div></div>
+                <div class="stat"><div class="k">显式期现值合计（万元）<span class="hint" data-tip="预测期内各年自由现金流（FCFF），按折现率逐年折现后的现值之和，不含终值。" tabindex="0">?</span></div><div class="v" id="pvSum">—</div></div>
+                <div class="stat"><div class="k">终值现值（万元）<span class="hint" data-tip="预测期末的终值（永续期整体价值）折现回当前时点的现值。终值用永续增长模型计算。" tabindex="0">?</span></div><div class="v" id="pvTv">—</div></div>
+                <div class="stat highlight"><div class="k">企业价值 EV（万元）<span class="hint" data-tip="显式期现值合计 + 终值现值，代表整个经营性业务的内在价值（未扣除债务）。" tabindex="0">?</span></div><div class="v" id="ev">—</div></div>
+                <div class="stat"><div class="k">股权价值（万元）<span class="hint" data-tip="企业价值 − 净有息债务 + 非经营性资产，归属于全体股东的价值。" tabindex="0">?</span></div><div class="v" id="equity">—</div></div>
+                <div class="stat highlight"><div class="k">每股价值（元）<span class="hint" data-tip="股权价值 ÷ 总股本，即每股内在价值。括号内为当前市场价，用于与估值结果对比。" tabindex="0">?</span></div><div class="v" id="perShare">—</div></div>
+                <div class="stat"><div class="k">终值占比<span class="hint" data-tip="终值现值占企业价值的比例。占比过高说明估值高度依赖远期假设，结果更不确定，需谨慎。" tabindex="0">?</span></div><div class="v" id="tvPct">—</div></div>
             </div>
             <div class="warn" id="warn"></div>
         </div>
@@ -193,6 +212,60 @@
 <script>
 (function () {
     const $ = (id) => document.getElementById(id);
+
+    // 当前股价（选股票时由后台带出，用于在「每股价值」旁对比展示）。
+    let selectedPrice = null;
+
+    // 公司速览 + 现价（搜索选股与载入收藏共用）
+    const AUTOFILL_URL = "{% url 'stock_autofill' %}";
+    const overviewPanel = $('overviewPanel');
+    const overviewGrid = $('overviewGrid');
+    const overviewNote = $('overviewNote');
+
+    function renderOverview(overview) {
+        if (!overviewPanel) return;
+        if (!overview || !overview.items || !overview.items.length) {
+            overviewPanel.hidden = true;
+            overviewGrid.innerHTML = '';
+            return;
+        }
+        overviewGrid.innerHTML = '';
+        overview.items.forEach(item => {
+            const cell = document.createElement('div');
+            cell.className = 'ov-item';
+            cell.innerHTML = `<div class="ov-k"></div><div class="ov-v"></div>`;
+            cell.querySelector('.ov-k').textContent = item.label;
+            cell.querySelector('.ov-v').textContent = item.value;
+            overviewGrid.appendChild(cell);
+        });
+        if (overviewNote) {
+            const parts = [];
+            if (overview.as_of) parts.push(`行情 ${overview.as_of}`);
+            if (overview.report_date) parts.push(`财报 ${overview.report_date}`);
+            overviewNote.textContent = parts.join(' · ');
+        }
+        overviewPanel.hidden = false;
+    }
+
+    // 按代码拉取速览 + 现价（仅用于展示，不改动表单字段）。供载入收藏时调用。
+    async function loadOverview(code) {
+        code = (code || '').trim();
+        if (!code) { selectedPrice = null; renderOverview(null); return; }
+        try {
+            const resp = await fetch(`${AUTOFILL_URL}?code=${encodeURIComponent(code)}`, {
+                headers: { 'X-Requested-With': 'XMLHttpRequest' },
+            });
+            const data = await resp.json();
+            if (!data.available || !data.found) { selectedPrice = null; renderOverview(null); compute(); return; }
+            selectedPrice = (data.current_price !== null && data.current_price !== undefined)
+                ? data.current_price : null;
+            renderOverview(data.overview);
+            compute();
+        } catch (e) {
+            selectedPrice = null;
+            renderOverview(null);
+        }
+    }
 
     // Django 字段 ID ↔ 计算变量
     const F = {
@@ -283,7 +356,15 @@
 
         const equity = result.ev - netDebt + adj;
         $('equity').textContent = fmt(equity);
-        $('perShare').textContent = shares > 0 ? fmt(equity / shares, 2) : '—';
+        if (shares > 0) {
+            let perShareTxt = fmt(equity / shares, 2);
+            if (selectedPrice !== null && isFinite(selectedPrice)) {
+                perShareTxt += `（现价 ${fmt(selectedPrice, 2)}）`;
+            }
+            $('perShare').textContent = perShareTxt;
+        } else {
+            $('perShare').textContent = '—';
+        }
         $('tvPct').textContent = fmtPct(result.pvTv / result.ev);
 
         renderSensitivity({ fcff0, years, growth, wacc, terminal, netDebt, adj, shares });
@@ -319,6 +400,10 @@
 
     // 实时重算
     Object.values(F).forEach(id => { const el = $(id); if (el) el.addEventListener('input', compute); });
+
+    // 手动改股票代码时清掉现价（避免沿用上一次选股的价格）
+    const tickerEl = $('id_ticker');
+    if (tickerEl) tickerEl.addEventListener('input', () => { selectedPrice = null; });
 
     // 点击收藏 → 回填参数并重算
     const FIELDS = ['company_name', 'ticker', 'current_fcf', 'growth_rate', 'discount_rate',
@@ -370,9 +455,125 @@
             updateTagLabel();
             setActive(btn.closest('.fav-item'));
             compute();
+            loadOverview(btn.dataset.ticker);  // 按代码带出速览+现价（不覆盖已载入的表单参数）
             $('id_company_name').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
     });
+
+    // 公司搜索 → 自动填充（只读复用 stock_crawler 数据）
+    const searchInput = $('stockSearchInput');
+    const searchResults = $('stockSearchResults');
+    const fcfNote = $('fcfNote');
+    const balanceNote = $('balanceNote');
+
+    if (searchInput) {
+        const SEARCH_URL = "{% url 'stock_search' %}";
+        let debounceTimer = null;
+        let lastCount = 0;
+
+        const closeResults = () => { searchResults.hidden = true; searchResults.innerHTML = ''; };
+        const showMessage = (text) => {
+            searchResults.innerHTML = `<div class="stock-search-empty">${text}</div>`;
+            searchResults.hidden = false;
+        };
+
+        async function runSearch(q) {
+            try {
+                const resp = await fetch(`${SEARCH_URL}?q=${encodeURIComponent(q)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await resp.json();
+                if (!data.available) { lastCount = 0; showMessage('公司库未启用，请手动输入。'); return; }
+                lastCount = data.results.length;
+                if (!data.results.length) { showMessage('系统暂无该公司资料，请自行输入。'); return; }
+                searchResults.innerHTML = '';
+                data.results.forEach(item => {
+                    const row = document.createElement('button');
+                    row.type = 'button';
+                    row.className = 'stock-search-item';
+                    row.dataset.code = item.code;
+                    row.innerHTML = `<span class="ss-name">${item.name}</span><span class="ss-code">${item.code}</span>`;
+                    row.addEventListener('click', () => selectStock(item.code));
+                    searchResults.appendChild(row);
+                });
+                searchResults.hidden = false;
+            } catch (e) {
+                lastCount = 0;
+                showMessage('搜索失败，请稍后再试或手动输入。');
+            }
+        }
+
+        async function selectStock(code) {
+            closeResults();
+            try {
+                const resp = await fetch(`${AUTOFILL_URL}?code=${encodeURIComponent(code)}`, {
+                    headers: { 'X-Requested-With': 'XMLHttpRequest' },
+                });
+                const data = await resp.json();
+                if (!data.available || !data.found) { alert('系统暂无该公司资料，请自行输入。'); return; }
+
+                const setIf = (id, value) => {
+                    if (value === null || value === undefined) return;
+                    const el = $(id);
+                    if (el) el.value = value;
+                };
+                setIf('id_ticker', data.ticker);
+                setIf('id_company_name', data.company_name);
+                setIf('id_shares_outstanding', data.shares_outstanding);
+                setIf('id_current_fcf', data.current_fcf);
+                setIf('id_net_debt', data.net_debt);
+                setIf('id_non_operating_assets', data.non_operating_assets);
+
+                if (balanceNote) {
+                    const hasBalance = (data.net_debt !== null && data.net_debt !== undefined)
+                        || (data.non_operating_assets !== null && data.non_operating_assets !== undefined);
+                    if (hasBalance) {
+                        const when = data.balance_report_date ? `（截至 ${data.balance_report_date}）` : '';
+                        balanceNote.textContent = `净有息债务/非经营性资产已按资产负债表科目估算填入${when}，口径可能与你的判断不同，请核对调整。`;
+                    } else {
+                        balanceNote.textContent = '库中暂无该公司资产负债表数据，净有息债务与非经营性资产请手动填写。';
+                    }
+                    balanceNote.hidden = false;
+                }
+
+                if (fcfNote) {
+                    if (data.current_fcf !== null && data.current_fcf !== undefined) {
+                        const when = data.fcf_report_date ? `（截至 ${data.fcf_report_date}）` : '';
+                        fcfNote.textContent = `已填入经营现金流净额作参考${when}，非真实自由现金流，请按资本开支等核对调整。`;
+                        fcfNote.hidden = false;
+                    } else {
+                        fcfNote.textContent = '库中暂无该公司现金流数据，自由现金流请手动填写。';
+                        fcfNote.hidden = false;
+                    }
+                }
+                selectedPrice = (data.current_price !== null && data.current_price !== undefined)
+                    ? data.current_price : null;
+                renderOverview(data.overview);
+                searchInput.value = data.company_name || '';
+                compute();
+            } catch (e) {
+                alert('获取公司数据失败，请稍后再试或手动输入。');
+            }
+        }
+
+        searchInput.addEventListener('input', () => {
+            const q = searchInput.value.trim();
+            clearTimeout(debounceTimer);
+            if (!q) { closeResults(); return; }
+            debounceTimer = setTimeout(() => runSearch(q), 250);
+        });
+        searchInput.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter') {
+                e.preventDefault();
+                const first = searchResults.querySelector('.stock-search-item');
+                if (first) { selectStock(first.dataset.code); }
+                else if (searchInput.value.trim() && lastCount === 0) { alert('系统暂无该公司资料，请自行输入。'); }
+            } else if (e.key === 'Escape') {
+                closeResults();
+            }
+        });
+        document.addEventListener('click', (e) => { if (!$('stockSearch').contains(e.target)) closeResults(); });
+    }
 
     compute();
 })();

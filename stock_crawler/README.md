@@ -20,11 +20,15 @@ stock_crawler/
 │   ├── quote.py           估值指标   stock_zh_valuation_baidu（含 52 周市值高/低）
 │   ├── holders.py         十大/流通股东 stock_main_stock_holder / stock_circulate_stock_holder
 │   ├── financial.py       财务摘要   stock_financial_abstract
+│   ├── balance.py         资产负债表 stock_balance_sheet_by_report_em（有息负债/现金/金融资产明细）
 │   └── dividend.py        分红送转   stock_dividend_cninfo
-└── sql/schema.sql         建库 + 9 张表 + 样本自选股(600900)
+└── sql/schema.sql         建库 + 10 张表 + 样本自选股(600900)
 ```
 
-数据源各自独立：`run_stock` 对 7 类数据逐一抓取，**单类失败只跳过那一类，其余照常入库**（见下方「抓取状态」）。
+数据源各自独立：`run_stock` 对 8 类数据逐一抓取，**单类失败只跳过那一类，其余照常入库**（见下方「抓取状态」）。
+
+> `stock_balance_sheet` 存资产负债表明细（单位：元），供 DCF 估值站估算「净有息债务 / 非经营性资产」。
+> 全量回填一次性脚本：`.venv/bin/python -m stock_crawler.backfill_balance`（幂等，可重复跑）。
 
 ## 安装
 

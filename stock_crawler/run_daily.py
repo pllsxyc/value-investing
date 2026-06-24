@@ -5,6 +5,7 @@ from stock_crawler.config import CRAWLER_SLEEP_SECONDS, SKIP_NON_TRADING_DAY
 from stock_crawler.db import log_job, session
 from stock_crawler.services.stock_service import (
     get_enabled_stocks,
+    upsert_balance_sheet,
     upsert_company,
     upsert_daily_quote,
     upsert_dividends,
@@ -14,6 +15,7 @@ from stock_crawler.services.stock_service import (
     upsert_top_holders,
 )
 from stock_crawler.services.trading_calendar import is_trading_day
+from stock_crawler.sources.balance import fetch_balance_sheet
 from stock_crawler.sources.capital import fetch_latest_share_capital
 from stock_crawler.sources.company import fetch_company_profile
 from stock_crawler.sources.dividend import fetch_dividends
@@ -54,6 +56,7 @@ def run_stock(stock_code, run_date):
         step("top_holders", lambda: upsert_top_holders(fetch_top_holders(stock_code)))
         step("float_holders", lambda: upsert_float_holders(fetch_float_holders(stock_code)))
         step("financial", lambda: upsert_financial_summary(fetch_financial_summary(stock_code)))
+        step("balance", lambda: upsert_balance_sheet(fetch_balance_sheet(stock_code)))
         step("dividends", lambda: upsert_dividends(fetch_dividends(stock_code)))
 
     status = "partial" if errors else "success"

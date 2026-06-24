@@ -5,6 +5,8 @@ from . import views
 
 urlpatterns = [
     path('', views.calculator, name='calculator'),
+    path('api/stock/search/', views.stock_search, name='stock_search'),
+    path('api/stock/autofill/', views.stock_autofill, name='stock_autofill'),
     path('favorites/', views.favorites, name='favorites'),
     path('favorites/<int:pk>/delete/', views.delete_favorite, name='delete_favorite'),
     path('tags/<int:pk>/delete/', views.delete_tag, name='delete_tag'),

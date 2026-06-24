@@ -132,6 +132,26 @@ CREATE TABLE IF NOT EXISTS stock_financial_summary (
     UNIQUE KEY uk_stock_report (stock_code, report_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- 资产负债表明细（仅取估算「净有息债务/非经营性资产」所需科目，单位：元）
+CREATE TABLE IF NOT EXISTS stock_balance_sheet (
+    id BIGINT PRIMARY KEY AUTO_INCREMENT,
+    stock_code VARCHAR(20) NOT NULL,
+    report_date DATE NOT NULL,
+    monetary_funds DECIMAL(20,4),             -- 货币资金
+    trade_finasset DECIMAL(20,4),             -- 交易性金融资产
+    other_equity_invest DECIMAL(20,4),        -- 其他权益工具投资
+    other_noncurrent_finasset DECIMAL(20,4),  -- 其他非流动金融资产
+    short_loan DECIMAL(20,4),                 -- 短期借款
+    short_bond_payable DECIMAL(20,4),         -- 短期应付债券
+    noncurrent_liab_1year DECIMAL(20,4),      -- 一年内到期的非流动负债
+    long_loan DECIMAL(20,4),                  -- 长期借款
+    bond_payable DECIMAL(20,4),               -- 应付债券
+    source VARCHAR(100),
+    created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    UNIQUE KEY uk_stock_report (stock_code, report_date)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 CREATE TABLE IF NOT EXISTS stock_dividend (
     id BIGINT PRIMARY KEY AUTO_INCREMENT,
     stock_code VARCHAR(20) NOT NULL,

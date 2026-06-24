@@ -105,6 +105,22 @@ else:
         }
     }
 
+# 只读复用 stock_crawler 的 stock_data 库（仅供公司搜索/自动填充，不建 model、不迁移）。
+# 本地 SQLite 开发不设这些变量时不挂载该连接，相关接口优雅降级为「公司库未启用」。
+if os.environ.get('STOCK_DB_ENABLED') == '1' or os.environ.get('DCF_DB_ENGINE') == 'mysql':
+    DATABASES['stock'] = {
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': os.environ.get('STOCK_DB_NAME', 'stock_data'),
+        'USER': os.environ.get('STOCK_DB_USER', 'stock_user'),
+        'PASSWORD': os.environ.get('STOCK_DB_PASSWORD', ''),
+        'HOST': os.environ.get('STOCK_DB_HOST', os.environ.get('DCF_DB_HOST', '127.0.0.1')),
+        'PORT': os.environ.get('STOCK_DB_PORT', '3306'),
+        'OPTIONS': {'charset': 'utf8mb4'},
+    }
+
+# 迁移只落在 default；禁止把任何表迁移/写入只读的 stock 连接。
+DATABASE_ROUTERS = ['dcfsite.db_router.StockReadOnlyRouter']
+
 
 # Password validation
 # https://docs.djangoproject.com/en/6.0/ref/settings/#auth-password-validators
