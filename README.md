@@ -98,18 +98,21 @@ db.sqlite3               用户与收藏数据（备份时必须包含）
 ## 部署（生产）
 
 ```bash
-cd /var/www/vi.starbugs.net
+cd /var/www/value-investing                      # ← 生产目录就是这里（gunicorn 的 WorkingDirectory）
+git pull
 .venv/bin/pip install -r requirements.txt
 .venv/bin/python manage.py migrate
-.venv/bin/python manage.py collectstatic --noinput
+.venv/bin/python manage.py collectstatic --noinput   # ⚠️ 改过 CSS/JS/模板静态务必跑，否则线上还是旧样式
 .venv/bin/python manage.py check --deploy        # 部署前自检
 systemctl restart dcfsite.service                # Gunicorn，监听 127.0.0.1:8000
 ```
 
-- Gunicorn 由 systemd 管理：`/etc/systemd/system/dcfsite.service`
-- Nginx 站点配置：`/etc/nginx/conf.d/vi.starbugs.net.conf`（HTTPS 反代到 `127.0.0.1:8000`，静态文件直出 `staticfiles/`）
-- 改 Nginx 后：`nginx -t && systemctl reload nginx`
+- Gunicorn 由 systemd 管理：`/etc/systemd/system/dcfsite.service`，`WorkingDirectory=/var/www/value-investing`。
+- Nginx 站点配置：`/etc/nginx/conf.d/vi.starbugs.net.conf`（HTTPS 反代到 `127.0.0.1:8000`）。
+  **`/static/` 的 alias 必须指向 `/var/www/value-investing/staticfiles/`**（即 `STATIC_ROOT`）——务必与上面的部署目录一致，否则应用渲染新页面、Nginx 却发旧 CSS，排版会乱。
+- 改 Nginx 后：`nginx -t && systemctl reload nginx`（静态文件变更不需要重启 gunicorn）。
 - 看日志：`journalctl -u dcfsite.service -f`
+- ⚠️ 历史遗留目录 `/var/www/vi.starbugs.net` 是旧拷贝，已不再由 gunicorn/nginx-static 使用，**但仍是 Let's Encrypt 的 webroot**（`certbot` 的 `webroot_path` 指向它），不要删除。
 
 ## 注意事项
 

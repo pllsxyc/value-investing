@@ -21,7 +21,8 @@ def upsert_company(profile):
             industry=VALUES(industry), listing_date=VALUES(listing_date), website=VALUES(website),
             email=VALUES(email), phone=VALUES(phone), registered_address=VALUES(registered_address),
             office_address=VALUES(office_address), main_business=VALUES(main_business),
-            business_scope=VALUES(business_scope), company_profile=VALUES(company_profile)
+            business_scope=VALUES(business_scope), company_profile=VALUES(company_profile),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         profile,
     )
@@ -40,7 +41,8 @@ def upsert_share_capital(row):
         ON DUPLICATE KEY UPDATE
             announcement_date=VALUES(announcement_date), change_reason=VALUES(change_reason),
             total_share=VALUES(total_share), circulated_share=VALUES(circulated_share),
-            restricted_share=VALUES(restricted_share), a_share=VALUES(a_share), source=VALUES(source)
+            restricted_share=VALUES(restricted_share), a_share=VALUES(a_share), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         row,
     )
@@ -59,7 +61,8 @@ def upsert_daily_quote(row):
             market_cap=VALUES(market_cap), pe_ttm=VALUES(pe_ttm), pe_static=VALUES(pe_static),
             pb=VALUES(pb), pcf=VALUES(pcf), market_cap_52w_high=VALUES(market_cap_52w_high),
             market_cap_52w_low=VALUES(market_cap_52w_low), total_share=VALUES(total_share),
-            float_share=VALUES(float_share), source=VALUES(source)
+            float_share=VALUES(float_share), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         row,
     )
@@ -77,7 +80,8 @@ def upsert_top_holders(rows):
         ON DUPLICATE KEY UPDATE
             announcement_date=VALUES(announcement_date), hold_amount=VALUES(hold_amount),
             hold_ratio=VALUES(hold_ratio), share_type=VALUES(share_type),
-            holder_total_count=VALUES(holder_total_count), avg_hold_amount=VALUES(avg_hold_amount), source=VALUES(source)
+            holder_total_count=VALUES(holder_total_count), avg_hold_amount=VALUES(avg_hold_amount), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         rows,
     )
@@ -92,7 +96,8 @@ def upsert_float_holders(rows):
                 %(hold_amount)s, %(hold_ratio)s, %(share_type)s, 'sina/akshare')
         ON DUPLICATE KEY UPDATE
             announcement_date=VALUES(announcement_date), hold_amount=VALUES(hold_amount),
-            hold_ratio=VALUES(hold_ratio), share_type=VALUES(share_type), source=VALUES(source)
+            hold_ratio=VALUES(hold_ratio), share_type=VALUES(share_type), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         rows,
     )
@@ -114,7 +119,8 @@ def upsert_financial_summary(rows):
             total_liability=VALUES(total_liability), net_assets=VALUES(net_assets),
             operating_cash_flow=VALUES(operating_cash_flow), eps=VALUES(eps),
             nav_per_share=VALUES(nav_per_share), cash_flow_per_share=VALUES(cash_flow_per_share),
-            roe=VALUES(roe), debt_ratio=VALUES(debt_ratio), source=VALUES(source)
+            roe=VALUES(roe), debt_ratio=VALUES(debt_ratio), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         rows,
     )
@@ -133,7 +139,8 @@ def upsert_dividends(rows):
             dividend_type=VALUES(dividend_type), record_date=VALUES(record_date),
             ex_dividend_date=VALUES(ex_dividend_date), payment_date=VALUES(payment_date),
             bonus_share_ratio=VALUES(bonus_share_ratio), transfer_ratio=VALUES(transfer_ratio),
-            cash_dividend_ratio=VALUES(cash_dividend_ratio), dividend_desc=VALUES(dividend_desc), source=VALUES(source)
+            cash_dividend_ratio=VALUES(cash_dividend_ratio), dividend_desc=VALUES(dividend_desc), source=VALUES(source),
+            updated_at=CURRENT_TIMESTAMP()
         """,
         rows,
     )

@@ -1,5 +1,6 @@
 db.sqlite3
 stock_crawler/.env
+stock_crawler/logs/
 *.pyc
 __pycache__/
 .venv

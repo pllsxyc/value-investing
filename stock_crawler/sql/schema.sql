@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS stock_daily_quote (
     float_share DECIMAL(20,4),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_stock_date (stock_code, trade_date),
     KEY idx_trade_date (trade_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -69,6 +70,7 @@ CREATE TABLE IF NOT EXISTS stock_share_capital (
     a_share DECIMAL(20,4),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_stock_change_date (stock_code, change_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -86,6 +88,7 @@ CREATE TABLE IF NOT EXISTS stock_top_holder (
     avg_hold_amount DECIMAL(20,4),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_holder (stock_code, report_date, rank_no, holder_name),
     KEY idx_stock_report (stock_code, report_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -102,6 +105,7 @@ CREATE TABLE IF NOT EXISTS stock_float_holder (
     share_type VARCHAR(100),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_float_holder (stock_code, report_date, rank_no, holder_name),
     KEY idx_stock_report (stock_code, report_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
@@ -124,6 +128,7 @@ CREATE TABLE IF NOT EXISTS stock_financial_summary (
     debt_ratio DECIMAL(12,4),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_stock_report (stock_code, report_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
@@ -142,6 +147,7 @@ CREATE TABLE IF NOT EXISTS stock_dividend (
     dividend_desc VARCHAR(255),
     source VARCHAR(100),
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     UNIQUE KEY uk_dividend (stock_code, announcement_date, report_period)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
