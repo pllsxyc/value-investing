@@ -2,10 +2,10 @@
 
 给在本仓库工作的 Claude 的导览。仓库包含**两个相互独立的子系统**：
 
-1. **DCF 估值站**（根目录 + `dcfsite/` + `calculator/`）——线上 `vi.starbugs.net` 的 Django 应用，数据存 **SQLite**(`db.sqlite3`)。详见 [README.md](README.md)。
+1. **DCF 估值站**（根目录 + `dcfsite/` + `calculator/`）——线上 `vi.starbugs.net` 的 Django 应用，数据存 **MySQL/MariaDB** 库 `dcf_data`（驱动 PyMySQL；缺省回退 `db.sqlite3`）。详见 [README.md](README.md)。
 2. **股票爬虫**（`stock_crawler/`）——基于 akshare 的 A 股数据爬虫，数据存独立的 **MySQL/MariaDB** 库 `stock_data`。详见 [stock_crawler/README.md](stock_crawler/README.md)。
 
-两者不共用数据库、不互相 import。改其中一个一般不影响另一个。
+两个子系统各用一个 MySQL 库（`dcf_data` / `stock_data`），不共用、不互相 import。改其中一个一般不影响另一个。
 
 ## 环境
 
@@ -16,6 +16,7 @@
 ## DCF 估值站（Django）
 
 - 设置模块 `dcfsite.settings`；核心计算在 `calculator/views.py` 的 `calculate_dcf()`；模型 `DcfTag` / `DcfCalculation`（多对多 tags）。
+- 数据库由 `DCF_DB_ENGINE` 切换：`mysql`→库 `dcf_data`（生产/默认走环境变量），不设则回退 SQLite。`dcfsite/__init__.py` 用 `pymysql.install_as_MySQLdb()` 注册驱动。本地连 MySQL 跑 `manage.py` 要带 `DCF_DB_ENGINE=mysql DCF_DB_PASSWORD=…`。
 - 估值在前端 JS 实时算，不提交后端；后端负责账号、标签、收藏。
 - 金额单位**万元**、总股本**万股**。
 - 自检：`DJANGO_DEBUG=1 .venv/bin/python manage.py check && DJANGO_DEBUG=1 .venv/bin/python manage.py test`

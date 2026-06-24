@@ -19,7 +19,7 @@
 
 ## 技术栈
 
-- Python 3.12 · Django 6.0 · SQLite
+- Python 3.12 · Django 6.0 · MySQL/MariaDB（驱动 PyMySQL；缺省回退 SQLite，见环境变量）
 - Django Template + 原生 CSS/JS（不引入前端构建链）
 - 生产：Gunicorn + Nginx（HTTPS / HTTP2 / HTTP3）+ Let's Encrypt，systemd 管理
 
@@ -63,6 +63,10 @@ DJANGO_DEBUG=1 python manage.py test
 | `DJANGO_DEBUG` | 是否开启调试 | `1` | `0` |
 | `DJANGO_SECRET_KEY` | 密钥，`DEBUG=0` 时必填 | 不需要 | 随机生成 |
 | `DJANGO_ALLOWED_HOSTS` | 允许的 Host，逗号分隔 | 用默认即可 | `vi.starbugs.net,...` |
+| `DCF_DB_ENGINE` | `mysql` 切到 MySQL；其余/不设则用 SQLite | 不设(SQLite) | `mysql` |
+| `DCF_DB_NAME/USER/PASSWORD/HOST/PORT` | MySQL 连接（`DCF_DB_ENGINE=mysql` 时生效） | — | `dcf_data` / `dcf_user` / … / `127.0.0.1` / `3306` |
+
+数据库：默认 SQLite；设 `DCF_DB_ENGINE=mysql` 即切到 MySQL 库 `dcf_data`（与爬虫的 `stock_data` 相互独立）。生产已用 MySQL。
 
 `DEBUG=False` 时自动启用生产安全项（强制 HTTPS、HSTS、安全 Cookie、`X-Frame-Options: DENY` 等）。生产环境变量写在 `/etc/dcfsite.env`（不纳入代码库），由 systemd 注入。
 
@@ -77,7 +81,7 @@ calculator/
   urls.py                路由
   templates/calculator/  页面与 _field.html 字段局部模板
   static/calculator/     style.css
-db.sqlite3               用户与收藏数据（备份时必须包含）
+db.sqlite3               旧 SQLite 数据（已迁移至 MySQL dcf_data，保留作历史备份/缺省回退）
 ```
 
 路由：`/` 计算器 · `/favorites/` 收藏明细 · `/login` `/logout` `/register` · `/admin/`
@@ -116,7 +120,8 @@ systemctl restart dcfsite.service                # Gunicorn，监听 127.0.0.1:8
 
 ## 注意事项
 
-- SQLite 适合小规模；用户量增长后建议迁移 PostgreSQL。
-- 备份须包含 `db.sqlite3` 与 `/etc/dcfsite.env`。
+- 用户与收藏数据存 MySQL 库 `dcf_data`；备份用 `mysqldump dcf_data > dcf_data.sql`，并一并备份 `/etc/dcfsite.env`。
+- 回滚到 SQLite：删除/注释 `/etc/dcfsite.env` 里的 `DCF_DB_*` 后重启服务即可（`db.sqlite3` 原样保留）。
+- 迁移历史：原 SQLite 数据已通过 `dumpdata`→`migrate`→`loaddata` 迁入 MySQL。
 - `staticfiles/` 是 `collectstatic` 生成目录，非源文件。
 - 轮换密钥：更新 `/etc/dcfsite.env` 后重启服务（会使现有登录会话失效）。

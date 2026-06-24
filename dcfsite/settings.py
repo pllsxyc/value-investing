@@ -84,12 +84,26 @@ WSGI_APPLICATION = 'dcfsite.wsgi.application'
 # Database
 # https://docs.djangoproject.com/en/6.0/ref/settings/#databases
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# 默认 SQLite；设 DCF_DB_ENGINE=mysql 时切到 MySQL（密码等从环境变量读，不入码）
+if os.environ.get('DCF_DB_ENGINE', 'sqlite') == 'mysql':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.mysql',
+            'NAME': os.environ.get('DCF_DB_NAME', 'dcf_data'),
+            'USER': os.environ.get('DCF_DB_USER', 'dcf_user'),
+            'PASSWORD': os.environ.get('DCF_DB_PASSWORD', ''),
+            'HOST': os.environ.get('DCF_DB_HOST', '127.0.0.1'),
+            'PORT': os.environ.get('DCF_DB_PORT', '3306'),
+            'OPTIONS': {'charset': 'utf8mb4'},
+        }
     }
-}
+else:
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 
 # Password validation
