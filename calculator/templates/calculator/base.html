@@ -10,10 +10,11 @@
 <body>
     <header class="site-header">
         <div class="title-block">
-            <a class="brand" href="{% url 'calculator' %}">DCF 估值计算器</a>
+            <a class="brand" href="{% url 'home' %}">DCF 估值计算器</a>
             <span class="sub">自由现金流折现法（FCFF + 永续增长终值），输入即时计算。</span>
         </div>
         <nav>
+            <a class="btn-primary nav-calc" href="{% url 'calculator' %}">开始计算</a>
             {% if user.is_authenticated %}
                 <span class="who">{{ user.username }}</span>
                 <a href="{% url 'favorites' %}">收藏明细</a>

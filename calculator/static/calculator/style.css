@@ -67,6 +67,7 @@ a:hover {
 
 nav {
     display: flex;
+    flex-wrap: wrap;
     gap: 14px;
     align-items: center;
     font-size: 13px;
@@ -445,6 +446,19 @@ main {
     gap: 10px;
 }
 
+/* 公司信息面板：压缩纵向间距，使其与右侧「公司速览」高度大致对齐 */
+.panel-company h2 {
+    margin-bottom: 12px;
+}
+
+.panel-company .field {
+    margin-bottom: 10px;
+}
+
+.panel-company .notice {
+    margin: 6px 0;
+}
+
 /* ---------- 公司搜索自动补全 ---------- */
 .stock-search {
     position: relative;
@@ -771,6 +785,91 @@ tfoot td {
     background: #fdf2f0;
 }
 
+/* ---------- sidebar: 标签页 ---------- */
+.sidebar-tabs {
+    display: flex;
+    gap: 4px;
+    padding: 3px;
+    margin-bottom: 14px;
+    background: #efece4;
+    border-radius: 8px;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 7px 8px;
+    border: 0;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--muted);
+    font: inherit;
+    font-weight: 500;
+    cursor: pointer;
+    transition: background .15s, color .15s;
+}
+
+.tab-btn:hover {
+    color: var(--text);
+}
+
+.tab-btn.is-active {
+    background: #fff;
+    color: var(--text);
+    box-shadow: 0 1px 3px rgba(0, 0, 0, .08);
+}
+
+.tab-pane[hidden] {
+    display: none;
+}
+
+/* 各标签页内容独立滚动，不带动整页 */
+.tab-scroll {
+    max-height: calc(100vh - 180px);
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    margin: 0 -6px;
+    padding: 0 6px;
+}
+
+/* ---------- sidebar: 标签管理列表 ---------- */
+.tag-manage-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: grid;
+    gap: 6px;
+}
+
+.tag-manage-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 8px 10px;
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    background: #fff;
+}
+
+.tag-manage-item .tm-name {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 13px;
+}
+
+.tag-manage-item .tm-count {
+    font-size: 11px;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.tag-manage-item form {
+    margin: 0;
+    display: flex;
+}
+
 /* ---------- sidebar: tags ---------- */
 .sidebar-section + .sidebar-section {
     margin-top: 20px;
@@ -1042,4 +1141,186 @@ tfoot td {
 .auth-card .helptext {
     color: var(--muted);
     font-size: 11px;
+}
+
+/* ---------- 顶栏「开始计算」按钮 ---------- */
+.nav-calc {
+    padding: 6px 14px;
+    font-size: 13px;
+    color: #fff;
+}
+
+.nav-calc:hover {
+    color: #fff;
+    text-decoration: none;
+}
+
+/* ---------- 首页：沪深300 行情看板 ---------- */
+.home-cta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 12px;
+    margin-bottom: 20px;
+    padding: 14px 18px;
+    border: 1px solid #c8ddd1;
+    border-radius: 10px;
+    background: var(--accent-soft);
+    font-size: 14px;
+}
+
+.home-cta-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    flex-shrink: 0;
+}
+
+.home-cta-actions .btn-primary {
+    padding: 6px 16px;
+}
+
+.home-filter {
+    width: 100%;
+    max-width: 360px;
+    margin-bottom: 14px;
+    padding: 8px 11px;
+    border: 1px solid var(--border);
+    border-radius: 6px;
+    background: #fff;
+    font: inherit;
+    outline: none;
+}
+
+.home-filter:focus {
+    border-color: var(--accent);
+}
+
+.home-scroll {
+    max-height: calc(100vh - 320px);
+    min-height: 240px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    border: 1px solid var(--border);
+    border-radius: 8px;
+}
+
+.home-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13px;
+}
+
+.home-table thead th {
+    position: sticky;
+    top: 0;
+    z-index: 1;
+    background: #faf8f3;
+    color: var(--muted);
+    font-weight: 600;
+    text-align: left;
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+}
+
+.home-table th.num,
+.home-table td.num {
+    text-align: right;
+    font-variant-numeric: tabular-nums;
+}
+
+.home-table tbody td {
+    padding: 9px 14px;
+    border-bottom: 1px solid var(--border);
+}
+
+.home-table tbody tr:last-child td {
+    border-bottom: none;
+}
+
+.home-row {
+    cursor: pointer;
+    transition: background .12s;
+}
+
+.home-row:hover {
+    background: var(--accent-soft);
+}
+
+.home-table td.code {
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+}
+
+.home-table td.name {
+    font-weight: 500;
+}
+
+/* A 股配色：涨红跌绿 */
+.chg-up {
+    color: var(--warn);
+}
+
+.chg-down {
+    color: var(--accent);
+}
+
+/* ====================== 移动端响应式适配 ====================== */
+@media (max-width: 720px) {
+    main {
+        padding: 16px 14px 60px;
+    }
+
+    .site-header {
+        padding: 16px 14px 0;
+    }
+
+    .panel {
+        padding: 16px;
+    }
+
+    /* 结果区宽表格（年度明细/敏感性）横向滚动，列对齐保持不变 */
+    .results-col table {
+        display: block;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    /* 首页行情：滚动区给更多高度并允许横向滚动，筛选框占满宽度 */
+    .home-scroll {
+        max-height: 72vh;
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+    }
+
+    .home-filter {
+        max-width: 100%;
+    }
+}
+
+@media (max-width: 480px) {
+    .site-header .sub {
+        display: none;
+    }
+
+    .brand {
+        font-size: 19px;
+    }
+
+    /* 窄屏首页行情隐藏次要列（PE/PB），保留 代码/名称/现价/涨跌幅 */
+    .home-table .col-opt {
+        display: none;
+    }
+
+    .home-table thead th,
+    .home-table tbody td {
+        padding: 9px 10px;
+    }
+
+    /* 顶栏「开始计算」按钮在最窄屏占满一行更易点 */
+    .nav-calc {
+        order: -1;
+    }
 }

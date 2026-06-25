@@ -90,6 +90,72 @@ DEFAULT_INITIAL = {
 }
 
 
+def home(request):
+    """首页行情看板：展示沪深300（=watchlist）成分股现价与最近一次同步的涨跌幅。
+
+    数据只读自 stock_data：close_price 上游缺失，现价由市值/总股本推算，
+    涨跌幅取最近两个交易日市值的变化率（股本日内不变，市值变化率＝价格变化率）。
+    库不可用时降级为 available=False，由模板提示。
+    """
+    cursor = _stock_cursor()
+    if cursor is None:
+        return render(request, 'calculator/home.html', {'available': False, 'stocks': []})
+
+    stocks, as_of, prev_date, synced_at = [], None, None, None
+    try:
+        with cursor:
+            cursor.execute('SELECT DISTINCT trade_date FROM stock_daily_quote ORDER BY trade_date DESC LIMIT 2')
+            dates = [row[0] for row in cursor.fetchall()]
+            if dates:
+                as_of = dates[0]
+                prev_date = dates[1] if len(dates) > 1 else None
+
+                cursor.execute(
+                    'SELECT MAX(updated_at) FROM stock_daily_quote WHERE trade_date = %s', [as_of]
+                )
+                synced_at = cursor.fetchone()[0]
+
+                cursor.execute(
+                    """
+                    SELECT q.stock_code,
+                           COALESCE(b.stock_name, w.stock_name) AS name,
+                           q.market_cap, q.total_share, q.pe_ttm, q.pb,
+                           p.market_cap AS prev_cap
+                    FROM stock_daily_quote q
+                    LEFT JOIN stock_daily_quote p
+                           ON p.stock_code = q.stock_code AND p.trade_date = %s
+                    LEFT JOIN stock_basic b ON b.stock_code = q.stock_code
+                    LEFT JOIN stock_watchlist w ON w.stock_code = q.stock_code
+                    WHERE q.trade_date = %s
+                    ORDER BY q.market_cap IS NULL, q.market_cap DESC
+                    """,
+                    [prev_date, as_of],
+                )
+                for code, name, market_cap, total_share, pe_ttm, pb, prev_cap in cursor.fetchall():
+                    mc, sh, prev = _to_float(market_cap), _to_float(total_share), _to_float(prev_cap)
+                    price = mc * 1e4 / sh if mc is not None and sh else None
+                    change_pct = (mc - prev) / prev * 100 if mc is not None and prev else None
+                    stocks.append({
+                        'code': code,
+                        'name': name or code,
+                        'price': round(price, 2) if price is not None else None,
+                        'change_pct': round(change_pct, 2) if change_pct is not None else None,
+                        'pe_ttm': _fmt_num(pe_ttm),
+                        'pb': _fmt_num(pb),
+                    })
+    except DatabaseError:
+        return render(request, 'calculator/home.html', {'available': False, 'stocks': []})
+
+    return render(request, 'calculator/home.html', {
+        'available': True,
+        'stocks': stocks,
+        'count': len(stocks),
+        'as_of': as_of,
+        'prev_date': prev_date,
+        'synced_at': synced_at,
+    })
+
+
 def calculator(request):
     tag_form = TagCreateForm()
 
@@ -144,14 +210,44 @@ def calculator(request):
     else:
         form = DcfCalculationForm(user=request.user, initial=DEFAULT_INITIAL)
 
+    return _render_calculator(request, form, tag_form)
+
+
+def _render_calculator(request, form, tag_form=None):
+    """统一渲染估值主页：装配侧栏分组、标签表单等公共上下文。"""
     groups = get_sidebar_groups(request.user)
     has_tags = request.user.is_authenticated and any(g['tag'] for g in groups)
     return render(request, 'calculator/calculator.html', {
         'form': form,
-        'tag_form': tag_form,
+        'tag_form': tag_form or TagCreateForm(),
         'groups': groups,
         'has_tags': has_tags,
     })
+
+
+def stock_detail(request, username, ticker):
+    """/<username>/s/<ticker>/：按代码打开本人的收藏，预填表单。仅本人可见。"""
+    if not request.user.is_authenticated:
+        return redirect('login')
+    if request.user.username != username:
+        return redirect('calculator')
+
+    favorite = (
+        DcfCalculation.objects.filter(user=request.user, ticker=ticker)
+        .prefetch_related('tags')
+        .first()
+    )
+    if favorite is None:
+        messages.info(request, f'未找到股票代码 {ticker} 的收藏。')
+        return redirect('calculator')
+
+    initial = {
+        field: getattr(favorite, field)
+        for field in DcfCalculationForm.Meta.fields if field != 'tags'
+    }
+    initial['tags'] = list(favorite.tags.values_list('id', flat=True))
+    form = DcfCalculationForm(user=request.user, initial=initial)
+    return _render_calculator(request, form)
 
 
 @login_required

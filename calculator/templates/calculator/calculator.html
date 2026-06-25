@@ -10,87 +10,112 @@
 <div class="grid">
     <!-- 收藏侧栏 -->
     <aside class="sidebar">
-        <div class="panel">
-            <div class="sidebar-section">
-                <h2>标签与收藏</h2>
-                {% if user.is_authenticated %}
-                    <form class="save-row" method="post">
+        <div class="panel sidebar-panel">
+            {% with tag_error=tag_form.name.errors %}
+            <div class="sidebar-tabs" role="tablist">
+                <button type="button" class="tab-btn{% if not tag_error %} is-active{% endif %}" data-tab="favorites" role="tab">我的收藏</button>
+                <button type="button" class="tab-btn{% if tag_error %} is-active{% endif %}" data-tab="tags" role="tab">标签管理</button>
+            </div>
+
+            {% if user.is_authenticated %}
+                <!-- 我的收藏 -->
+                <div class="tab-pane" id="pane-favorites" role="tabpanel"{% if tag_error %} hidden{% endif %}>
+                    <div class="tab-scroll">
+                        {% if groups %}
+                            {% for group in groups %}
+                                <details class="tag-group" open>
+                                    <summary>
+                                        <span class="tag-group-name">{{ group.name }}</span>
+                                        <span class="tag-group-tools"><em>{{ group.items|length }}</em></span>
+                                    </summary>
+                                    <ul class="fav-list">
+                                        {% for item in group.items %}
+                                            <li class="fav-item">
+                                                <button class="fav-load" type="button" title="点击载入参数"
+                                                        data-tags="{% for t in item.tags.all %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
+                                                        data-company_name="{{ item.company_name }}"
+                                                        data-ticker="{{ item.ticker }}"
+                                                        data-current_fcf="{{ item.current_fcf }}"
+                                                        data-growth_rate="{{ item.growth_rate }}"
+                                                        data-discount_rate="{{ item.discount_rate }}"
+                                                        data-terminal_growth_rate="{{ item.terminal_growth_rate }}"
+                                                        data-forecast_years="{{ item.forecast_years }}"
+                                                        data-net_debt="{{ item.net_debt }}"
+                                                        data-non_operating_assets="{{ item.non_operating_assets }}"
+                                                        data-shares_outstanding="{{ item.shares_outstanding }}">
+                                                    <div class="fav-name">{{ item.company_name }}{% if item.ticker %} · {{ item.ticker }}{% endif %}</div>
+                                                    <div class="fav-meta">每股 {{ item.value_per_share|floatformat:2 }} · {{ item.created_at|date:'m-d H:i' }}</div>
+                                                </button>
+                                                <form method="post" action="{% url 'delete_favorite' item.pk %}"
+                                                      onsubmit="return confirm('删除收藏“{{ item.company_name }}”？');">
+                                                    {% csrf_token %}
+                                                    <button class="fav-del" type="submit" title="删除" aria-label="删除收藏 {{ item.company_name }}">×</button>
+                                                </form>
+                                            </li>
+                                        {% empty %}
+                                            <li class="fav-empty-row">暂无收藏，填写参数并选择该标签后保存。</li>
+                                        {% endfor %}
+                                    </ul>
+                                </details>
+                            {% endfor %}
+                        {% else %}
+                            <p class="muted">还没有收藏。先到「标签管理」创建标签，填写参数并选择标签后保存即可在此查看。</p>
+                        {% endif %}
+                    </div>
+                </div>
+
+                <!-- 标签管理 -->
+                <div class="tab-pane" id="pane-tags" role="tabpanel"{% if not tag_error %} hidden{% endif %}>
+                    <form class="save-row" method="post" action="{% url 'calculator' %}">
                         {% csrf_token %}
                         <input type="hidden" name="action" value="create_tag">
                         {{ tag_form.name }}
-                        <button class="btn-primary" type="submit">添加标签</button>
+                        <button class="btn-primary" type="submit">添加</button>
                     </form>
                     {% for error in tag_form.name.errors %}<div class="error">{{ error }}</div>{% endfor %}
-
-                    {% if groups %}
-                        {% for group in groups %}
-                            <details class="tag-group" open>
-                                <summary>
-                                    <span class="tag-group-name">{{ group.name }}</span>
-                                    <span class="tag-group-tools">
-                                        <em>{{ group.items|length }}</em>
-                                        {% if group.tag %}
-                                            {% if group.items %}
-                                                <button class="icon-del" type="button" aria-label="删除标签 {{ group.name }}"
-                                                        onclick="event.preventDefault();event.stopPropagation();alert('标签“{{ group.name }}”下还有 {{ group.items|length }} 条收藏，请先删除这些收藏后再删除该标签。');">×</button>
-                                            {% else %}
-                                                <button class="icon-del" type="submit" form="del-tag-{{ group.tag.pk }}"
-                                                        onclick="event.stopPropagation();" aria-label="删除标签 {{ group.name }}">×</button>
-                                            {% endif %}
-                                        {% endif %}
-                                    </span>
-                                </summary>
-                                <ul class="fav-list">
-                                    {% for item in group.items %}
-                                        <li class="fav-item">
-                                            <button class="fav-load" type="button" title="点击载入参数"
-                                                    data-tags="{% for t in item.tags.all %}{{ t.id }}{% if not forloop.last %},{% endif %}{% endfor %}"
-                                                    data-company_name="{{ item.company_name }}"
-                                                    data-ticker="{{ item.ticker }}"
-                                                    data-current_fcf="{{ item.current_fcf }}"
-                                                    data-growth_rate="{{ item.growth_rate }}"
-                                                    data-discount_rate="{{ item.discount_rate }}"
-                                                    data-terminal_growth_rate="{{ item.terminal_growth_rate }}"
-                                                    data-forecast_years="{{ item.forecast_years }}"
-                                                    data-net_debt="{{ item.net_debt }}"
-                                                    data-non_operating_assets="{{ item.non_operating_assets }}"
-                                                    data-shares_outstanding="{{ item.shares_outstanding }}">
-                                                <div class="fav-name">{{ item.company_name }}{% if item.ticker %} · {{ item.ticker }}{% endif %}</div>
-                                                <div class="fav-meta">每股 {{ item.value_per_share|floatformat:2 }} · {{ item.created_at|date:'m-d H:i' }}</div>
-                                            </button>
-                                            <form method="post" action="{% url 'delete_favorite' item.pk %}"
-                                                  onsubmit="return confirm('删除收藏“{{ item.company_name }}”？');">
+                    <div class="tab-scroll">
+                        <ul class="tag-manage-list">
+                            {% for group in groups %}
+                                {% if group.tag %}
+                                    <li class="tag-manage-item">
+                                        <span class="tm-name">{{ group.name }}</span>
+                                        <span class="tm-count">{{ group.items|length }}</span>
+                                        {% if group.items %}
+                                            <button class="icon-del" type="button" aria-label="删除标签 {{ group.name }}"
+                                                    onclick="alert('标签“{{ group.name }}”下还有 {{ group.items|length }} 条收藏，请先删除这些收藏后再删除该标签。');">×</button>
+                                        {% else %}
+                                            <form method="post" action="{% url 'delete_tag' group.tag.pk %}"
+                                                  onsubmit="return confirm('删除标签“{{ group.name }}”？');">
                                                 {% csrf_token %}
-                                                <button class="fav-del" type="submit" title="删除" aria-label="删除收藏 {{ item.company_name }}">×</button>
+                                                <button class="icon-del" type="submit" aria-label="删除标签 {{ group.name }}">×</button>
                                             </form>
-                                        </li>
-                                    {% empty %}
-                                        <li class="fav-empty-row">暂无收藏，填写参数并选择该标签后保存。</li>
-                                    {% endfor %}
-                                </ul>
-                            </details>
-                            {% if group.tag and not group.items %}
-                                <form id="del-tag-{{ group.tag.pk }}" method="post" action="{% url 'delete_tag' group.tag.pk %}"
-                                      onsubmit="return confirm('删除标签“{{ group.name }}”？');" hidden>{% csrf_token %}</form>
-                            {% endif %}
-                        {% endfor %}
-                    {% else %}
-                        <p class="muted">还没有标签，点击上方「添加标签」创建第一个分类，保存收藏后会折叠展示在对应标签下。</p>
-                    {% endif %}
-                {% else %}
+                                        {% endif %}
+                                    </li>
+                                {% endif %}
+                            {% endfor %}
+                        </ul>
+                        {% if not has_tags %}<p class="muted">还没有标签，在上方输入名称添加第一个分类。</p>{% endif %}
+                    </div>
+                </div>
+            {% else %}
+                <div class="tab-pane is-active" id="pane-favorites" role="tabpanel"{% if tag_error %} hidden{% endif %}>
                     <p class="muted">登录后可创建标签，并按标签收藏、载入估值参数。</p>
-                {% endif %}
-            </div>
+                </div>
+                <div class="tab-pane" id="pane-tags" role="tabpanel"{% if not tag_error %} hidden{% endif %}>
+                    <p class="muted">登录后可创建和管理标签。</p>
+                </div>
+            {% endif %}
+            {% endwith %}
         </div>
     </aside>
 
     <!-- 中间：输入面板 -->
     <div class="inputs-col">
-        <form method="post" class="dcf-form" id="dcfForm">
+        <form method="post" action="{% url 'calculator' %}" class="dcf-form" id="dcfForm">
             {% csrf_token %}
             <input type="hidden" name="action" value="calculate">
 
-            <div class="panel">
+            <div class="panel panel-company">
                 <h2>公司信息</h2>
                 <div class="field stock-search" id="stockSearch">
                     <label for="stockSearchInput">
@@ -100,8 +125,10 @@
                     <input type="text" id="stockSearchInput" autocomplete="off" placeholder="输入公司简称或代码，如 长江电力 / 600900">
                     <div class="stock-search-results" id="stockSearchResults" role="listbox" hidden></div>
                 </div>
-                {% include 'calculator/_field.html' with field=form.company_name no_hint=True %}
-                {% include 'calculator/_field.html' with field=form.ticker no_hint=True %}
+                <div class="row2">
+                    {% include 'calculator/_field.html' with field=form.company_name no_hint=True %}
+                    {% include 'calculator/_field.html' with field=form.ticker no_hint=True %}
+                </div>
 
                 <div class="field{% if form.tags.errors %} has-error{% endif %}">
                     <label>
@@ -221,12 +248,27 @@
     const overviewPanel = $('overviewPanel');
     const overviewGrid = $('overviewGrid');
     const overviewNote = $('overviewNote');
+    const companyPanel = document.querySelector('.panel-company');
+
+    // 让「公司信息」与「公司速览」两个顶部面板等高：清零后取两者自然高度的较大值作为下限。
+    // 速览高度随数据条数变化，故每次渲染/窗口变化时重新同步，单列布局（≤720px）下不强制。
+    function syncPanelHeights() {
+        if (!companyPanel || !overviewPanel) return;
+        companyPanel.style.minHeight = '';
+        overviewPanel.style.minHeight = '';
+        if (overviewPanel.hidden || window.innerWidth <= 720) return;
+        const h = Math.max(companyPanel.offsetHeight, overviewPanel.offsetHeight);
+        companyPanel.style.minHeight = h + 'px';
+        overviewPanel.style.minHeight = h + 'px';
+    }
+    window.addEventListener('resize', syncPanelHeights);
 
     function renderOverview(overview) {
         if (!overviewPanel) return;
         if (!overview || !overview.items || !overview.items.length) {
             overviewPanel.hidden = true;
             overviewGrid.innerHTML = '';
+            syncPanelHeights();
             return;
         }
         overviewGrid.innerHTML = '';
@@ -245,6 +287,7 @@
             overviewNote.textContent = parts.join(' · ');
         }
         overviewPanel.hidden = false;
+        syncPanelHeights();
     }
 
     // 按代码拉取速览 + 现价（仅用于展示，不改动表单字段）。供载入收藏时调用。
@@ -406,6 +449,7 @@
     if (tickerEl) tickerEl.addEventListener('input', () => { selectedPrice = null; });
 
     // 点击收藏 → 回填参数并重算
+    const FAV_USER = "{{ user.username|escapejs }}";
     const FIELDS = ['company_name', 'ticker', 'current_fcf', 'growth_rate', 'discount_rate',
         'terminal_growth_rate', 'forecast_years', 'net_debt', 'non_operating_assets', 'shares_outstanding'];
 
@@ -456,9 +500,18 @@
             setActive(btn.closest('.fav-item'));
             compute();
             loadOverview(btn.dataset.ticker);  // 按代码带出速览+现价（不覆盖已载入的表单参数）
+            // 有股票代码时，把地址栏改成可分享/可刷新的 /<用户名>/s/<代码>/（不刷新页面）
+            const ticker = (btn.dataset.ticker || '').trim();
+            if (FAV_USER && ticker) {
+                const url = `/${encodeURIComponent(FAV_USER)}/s/${encodeURIComponent(ticker)}/`;
+                if (location.pathname !== url) history.pushState({ favTicker: ticker }, '', url);
+            }
             $('id_company_name').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
         });
     });
+
+    // 前进/后退时让服务端按 URL 渲染正确的收藏，避免地址与内容不一致
+    window.addEventListener('popstate', () => location.reload());
 
     // 公司搜索 → 自动填充（只读复用 stock_crawler 数据）
     const searchInput = $('stockSearchInput');
@@ -573,9 +626,35 @@
             }
         });
         document.addEventListener('click', (e) => { if (!$('stockSearch').contains(e.target)) closeResults(); });
+
+        // 从首页沪深300列表点进来：/calc/?code=600519 自动预填该股
+        const codeParam = new URLSearchParams(location.search).get('code');
+        if (codeParam && codeParam.trim()) selectStock(codeParam.trim());
     }
 
     compute();
+
+    // 直达 /<用户名>/s/<代码>/ 打开时表单已由后端预填，自动带出公司速览。
+    if (tickerEl && tickerEl.value.trim()) {
+        loadOverview(tickerEl.value.trim());
+        const active = document.querySelector(`.fav-load[data-ticker="${tickerEl.value.trim()}"]`);
+        if (active) setActive(active.closest('.fav-item'));
+    }
+})();
+
+// 侧栏标签页切换（我的收藏 / 标签管理）
+(function () {
+    const tabs = document.querySelectorAll('.sidebar-tabs .tab-btn');
+    if (!tabs.length) return;
+    const panes = {
+        favorites: document.getElementById('pane-favorites'),
+        tags: document.getElementById('pane-tags'),
+    };
+    tabs.forEach(btn => btn.addEventListener('click', () => {
+        const target = btn.dataset.tab;
+        tabs.forEach(b => b.classList.toggle('is-active', b === btn));
+        Object.entries(panes).forEach(([key, el]) => { if (el) el.hidden = (key !== target); });
+    }));
 })();
 </script>
 {% endblock %}

@@ -1,0 +1,75 @@
+{% extends 'calculator/base.html' %}
+{% block title %}沪深300 行情 · DCF 估值{% endblock %}
+{% block content %}
+{% if messages %}
+    <div class="messages">
+        {% for message in messages %}<div class="message {{ message.tags }}">{{ message }}</div>{% endfor %}
+    </div>
+{% endif %}
+
+{% if not user.is_authenticated %}
+    <div class="home-cta">
+        <span>登录后可保存你的 DCF 估值、按标签收藏并随时载入。</span>
+        <span class="home-cta-actions">
+            <a class="btn-primary" href="{% url 'login' %}">登录</a>
+            <a href="{% url 'register' %}">注册</a>
+        </span>
+    </div>
+{% endif %}
+
+<div class="panel home-panel">
+    <div class="section-title">
+        <h2>沪深300 · 现价与涨跌幅</h2>
+        <span class="note">
+            {% if available and as_of %}
+                数据日期 {{ as_of|date:'Y-m-d' }}{% if prev_date %} · 对比 {{ prev_date|date:'Y-m-d' }}{% endif %}{% if synced_at %} · 同步于 {{ synced_at|date:'Y-m-d H:i' }}{% endif %} · 共 {{ count }} 只
+            {% endif %}
+        </span>
+    </div>
+
+    {% if not available %}
+        <p class="muted">行情数据暂不可用（数据库未连接）。你仍可<a href="{% url 'calculator' %}">直接开始计算</a>。</p>
+    {% elif not stocks %}
+        <p class="muted">暂无行情数据。</p>
+    {% else %}
+        <input type="text" id="homeFilter" class="home-filter" autocomplete="off" placeholder="筛选：输入名称或代码，如 茅台 / 600519">
+        <div class="home-scroll">
+            <table class="home-table">
+                <thead>
+                    <tr><th>代码</th><th>名称</th><th class="num">现价（元）</th><th class="num">涨跌幅</th><th class="num col-opt">PE(TTM)</th><th class="num col-opt">PB</th></tr>
+                </thead>
+                <tbody id="homeRows">
+                    {% for s in stocks %}
+                        <tr class="home-row" data-key="{{ s.code }} {{ s.name }}"
+                            onclick="location.href='{% url 'calculator' %}?code={{ s.code }}'" title="点击载入「{{ s.name }}」开始计算">
+                            <td class="code">{{ s.code }}</td>
+                            <td class="name">{{ s.name }}</td>
+                            <td class="num">{% if s.price is not None %}{{ s.price|floatformat:2 }}{% else %}—{% endif %}</td>
+                            <td class="num {% if s.change_pct > 0 %}chg-up{% elif s.change_pct < 0 %}chg-down{% endif %}">
+                                {% if s.change_pct is not None %}{% if s.change_pct > 0 %}+{% endif %}{{ s.change_pct|floatformat:2 }}%{% else %}—{% endif %}
+                            </td>
+                            <td class="num col-opt">{{ s.pe_ttm|default:'—' }}</td>
+                            <td class="num col-opt">{{ s.pb|default:'—' }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="footnote">现价由总市值÷总股本推算（上游收盘价缺失），涨跌幅按相邻同步日市值变化率计算，仅供参考。点击任意一行可载入该股到计算器。</div>
+    {% endif %}
+</div>
+
+<script>
+(function () {
+    const input = document.getElementById('homeFilter');
+    if (!input) return;
+    const rows = Array.from(document.querySelectorAll('#homeRows .home-row'));
+    input.addEventListener('input', () => {
+        const q = input.value.trim().toLowerCase();
+        rows.forEach(r => {
+            r.hidden = q && !r.dataset.key.toLowerCase().includes(q);
+        });
+    });
+})();
+</script>
+{% endblock %}
